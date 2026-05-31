@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore U.S. airline hubs and focus cities with FAA enplanement data and BTS carrier context."
+    />
+    <title>U.S. Airline Hub Atlas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main>
+      <div id="map" aria-label="Interactive map of U.S. airline hubs"></div>
+
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">✦</div>
+          <div>
+            <p class="eyebrow">Network Intelligence / 2024 Snapshot</p>
+            <h1>U.S. Airline Hub Atlas</h1>
+          </div>
+        </div>
+        <button class="about-button" id="about-button" type="button">
+          About the data
+        </button>
+      </header>
+
+      <aside class="control-panel">
+        <div class="panel-intro">
+          <p class="eyebrow">Explore the network</p>
+          <h2>Where America connects.</h2>
+          <p>
+            Hover over any hub to reveal its major operating airlines. Marker
+            size reflects annual passenger boardings. Select airlines to compare
+            their U.S. route networks.
+          </p>
+        </div>
+
+        <div class="stat-grid">
+          <div>
+            <strong id="airport-count">0</strong>
+            <span>Airports</span>
+          </div>
+          <div>
+            <strong id="enplanement-total">0</strong>
+            <span>Enplanements</span>
+          </div>
+        </div>
+
+        <label class="search-wrap">
+          <span class="sr-only">Search airports</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" />
+          </svg>
+          <input id="airport-search" type="search" placeholder="Search airport or city" />
+        </label>
+
+        <section class="filter-section">
+          <div class="section-heading">
+            <h3>Network role</h3>
+            <button id="reset-filters" type="button">Reset</button>
+          </div>
+          <div class="role-filters" id="role-filters"></div>
+        </section>
+
+        <section class="filter-section">
+          <div class="section-heading">
+            <h3>Major airlines</h3>
+            <span>Multi-select routes</span>
+          </div>
+          <div class="airline-filters" id="airline-filters"></div>
+        </section>
+
+        <section class="route-summary" id="route-summary" hidden>
+          <div class="section-heading">
+            <h3>Routes on map</h3>
+            <span id="route-count">0 routes</span>
+          </div>
+          <div class="route-key" id="route-key"></div>
+        </section>
+
+        <section class="airport-list-section">
+          <div class="section-heading">
+            <h3>Visible airports</h3>
+            <span id="visible-count">0 shown</span>
+          </div>
+          <div class="airport-list" id="airport-list"></div>
+        </section>
+      </aside>
+
+      <div class="legend">
+        <p>Annual enplanements</p>
+        <div class="legend-scale">
+          <span class="legend-dot small"></span><span>&lt; 10m</span>
+          <span class="legend-dot medium"></span><span>20m</span>
+          <span class="legend-dot large"></span><span>50m+</span>
+        </div>
+        <p class="legend-note"><i></i> Focus city</p>
+        <p class="legend-route"><b></b> Selected airline route</p>
+      </div>
+
+      <div class="hover-card" id="hover-card" aria-live="polite"></div>
+
+      <div class="map-tip">Scroll to zoom · Drag to explore</div>
+
+      <div class="modal-backdrop" id="modal-backdrop" hidden>
+        <section class="data-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <button class="close-modal" id="close-modal" type="button" aria-label="Close">×</button>
+          <p class="eyebrow">Methodology</p>
+          <h2 id="modal-title">About this atlas</h2>
+          <p>
+            This visualization presents a curated set of U.S. airline network
+            hubs and focus cities. It uses FAA CY 2024 passenger boardings to
+            scale the markers and BTS TranStats carrier data to inform the
+            operating-airline details.
+          </p>
+          <p>
+            FAA also uses the word “hub” as a passenger-volume classification.
+            Here, “hub” describes an airport's airline-network role; “focus
+            city” identifies an important operating base with a smaller
+            connecting role. Major airline lists are concise summaries rather
+            than exhaustive service rosters.
+          </p>
+          <p>
+            Airline route lines are generated from a static OpenFlights
+            snapshot of non-stop U.S. segments. They include destination
+            airports beyond the labeled hubs, but are not a live schedule.
+          </p>
+          <div class="source-links">
+            <a href="https://www.faa.gov/airports/planning_capacity/passenger_allcargo_stats/passenger" target="_blank" rel="noreferrer">
+              FAA CY 2024 passenger data <span>↗</span>
+            </a>
+            <a href="https://www.transtats.bts.gov/airports.asp" target="_blank" rel="noreferrer">
+              BTS TranStats airport profiles <span>↗</span>
+            </a>
+            <a href="https://www.transtats.bts.gov/DataIndex.asp" target="_blank" rel="noreferrer">
+              BTS TranStats data index <span>↗</span>
+            </a>
+            <a href="https://openflights.org/data.php" target="_blank" rel="noreferrer">
+              OpenFlights route snapshot <span>↗</span>
+            </a>
+          </div>
+          <small>Prepared as an exploratory visualization. Data snapshot: CY 2024 FAA passenger boardings.</small>
+        </section>
+      </div>
+    </main>
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="data.js"></script>
+    <script src="route-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
