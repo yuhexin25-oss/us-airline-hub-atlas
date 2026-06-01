@@ -17,6 +17,7 @@ Then open `http://localhost:8000`.
 - [FAA passenger boarding data](https://www.faa.gov/airports/planning_capacity/passenger_allcargo_stats/passenger)
 - [BTS TranStats airport profiles](https://www.transtats.bts.gov/airports.asp)
 - [BTS TranStats data index](https://www.transtats.bts.gov/DataIndex.asp)
+- [TopoJSON U.S. Atlas](https://github.com/topojson/us-atlas) for lazy-loaded state boundaries
 
 FAA CY 2024 enplanements provide the passenger scale. Airline lists are concise
 operating summaries informed by BTS TranStats airport profiles.

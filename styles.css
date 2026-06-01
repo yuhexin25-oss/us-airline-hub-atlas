@@ -184,7 +184,7 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .hub-marker.network-member .hub-dot { stroke: rgba(255,255,255,.88); stroke-width: 1.5; }
 .hub-marker.route-selected .hub-halo { stroke: rgba(255,200,87,.72); }
 .hub-marker.dimmed { opacity: 0.12; pointer-events: none; }
-.hub-marker.hidden, .hub-marker.off-globe { display: none; }
+.hub-marker.hidden, .hub-marker.off-globe, .hub-marker.lod-hidden { display: none; }
 .route-hit { fill: none; stroke: transparent; stroke-width: 9; pointer-events: stroke; }
 .route-highlight { fill: none; stroke-width: 2.2; pointer-events: none; filter: drop-shadow(0 0 4px currentColor); }
 
@@ -227,6 +227,16 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .legend .legend-route { margin: 8px 0 0; color: var(--muted); text-transform: none; }
 .legend-route b { display: inline-block; width: 18px; margin-right: 6px; border-top: 2px solid var(--accent); vertical-align: middle; }
 .map-tip { position: absolute; right: 18px; top: 102px; color: #a7b0bd; font: 10px "DM Mono", monospace; text-transform: uppercase; }
+.zoom-controls {
+  position: absolute; right: 18px; top: 126px; display: grid; grid-template-columns: 30px 30px auto;
+  overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: rgba(8,13,22,.82); backdrop-filter: blur(12px);
+}
+.zoom-controls button {
+  min-width: 30px; height: 30px; padding: 0 9px; color: #cbd3dc; border: 0; border-right: 1px solid var(--line);
+  background: transparent; font: 500 15px "DM Mono", monospace;
+}
+.zoom-controls button:hover { color: var(--accent); background: rgba(255,255,255,.06); }
+.zoom-controls .reset-globe { border-right: 0; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
 
 .modal-backdrop { position: absolute; z-index: 10; inset: 0; display: grid; place-items: center; background: rgba(5,9,15,.68); backdrop-filter: blur(6px); }
 .modal-backdrop[hidden] { display: none; }
@@ -252,5 +262,5 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   .filter-section { padding-bottom: 8px; }
   .airline-filters { max-height: 32px; overflow: hidden; }
   .legend { right: 10px; bottom: calc(41vh + 10px); }
-  .map-tip { display: none; }
+  .map-tip, .zoom-controls { display: none; }
 }

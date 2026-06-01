@@ -120,7 +120,13 @@
       <div class="hover-card" id="hover-card" aria-live="polite"></div>
       <div class="route-tooltip" id="route-tooltip" aria-live="polite"></div>
 
-      <div class="map-tip">Drag to rotate · Scroll to zoom</div>
+      <div class="zoom-controls" aria-label="Globe zoom controls">
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <button class="reset-globe" id="reset-globe" type="button">Reset Globe</button>
+      </div>
+
+      <div class="map-tip">Scroll to zoom · Drag to rotate · Double-click a hub to focus</div>
 
       <div class="modal-backdrop" id="modal-backdrop" hidden>
         <section class="data-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">

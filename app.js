@@ -1,42 +1,58 @@
 const MAX_VISIBLE_ROUTES = 240;
 const ROUTE_SAMPLE_COUNT = 14;
+const MIN_ZOOM = 0.72;
+const MAX_ZOOM = 4.4;
+const REGIONAL_ZOOM = 1.3;
+const CLOSE_REGIONAL_ZOOM = 2.35;
 const passengerFormat = d3.format(".3~s");
 const passengerLongFormat = d3.format(",");
 const radiusScale = d3.scaleSqrt()
   .domain(d3.extent(HUBS, (hub) => hub.enplanements))
   .range([4.5, 12]);
 const REFERENCE_LABELS = [
-  { name: "United States", coordinates: [-100, 39], type: "country", priority: 10 },
-  { name: "Canada", coordinates: [-108, 57], type: "country", priority: 9 },
-  { name: "Mexico", coordinates: [-102, 23], type: "country", priority: 8 },
-  { name: "Greenland", coordinates: [-42, 72], type: "country", priority: 5 },
-  { name: "Iceland", coordinates: [-19, 65], type: "country", priority: 4 },
-  { name: "United Kingdom", coordinates: [-3, 55], type: "country", priority: 6 },
-  { name: "France", coordinates: [2, 46], type: "country", priority: 5 },
-  { name: "Germany", coordinates: [10, 51], type: "country", priority: 5 },
-  { name: "Spain", coordinates: [-4, 40], type: "country", priority: 4 },
-  { name: "Brazil", coordinates: [-52, -10], type: "country", priority: 7 },
-  { name: "Argentina", coordinates: [-64, -35], type: "country", priority: 5 },
-  { name: "Russia", coordinates: [90, 60], type: "country", priority: 7 },
-  { name: "China", coordinates: [104, 35], type: "country", priority: 8 },
-  { name: "Japan", coordinates: [138, 37], type: "country", priority: 6 },
-  { name: "India", coordinates: [79, 22], type: "country", priority: 7 },
-  { name: "Australia", coordinates: [134, -25], type: "country", priority: 7 },
-  { name: "New York", coordinates: [-74.01, 40.71], type: "city", priority: 6 },
-  { name: "Chicago", coordinates: [-87.63, 41.88], type: "city", priority: 5 },
-  { name: "Atlanta", coordinates: [-84.39, 33.75], type: "city", priority: 5 },
-  { name: "Dallas", coordinates: [-96.8, 32.78], type: "city", priority: 4 },
-  { name: "Los Angeles", coordinates: [-118.24, 34.05], type: "city", priority: 6 },
-  { name: "Seattle", coordinates: [-122.33, 47.61], type: "city", priority: 4 },
-  { name: "Denver", coordinates: [-104.99, 39.74], type: "city", priority: 4 },
-  { name: "Miami", coordinates: [-80.19, 25.76], type: "city", priority: 4 },
-  { name: "London", coordinates: [-0.13, 51.51], type: "city", priority: 6 },
-  { name: "Paris", coordinates: [2.35, 48.86], type: "city", priority: 5 },
-  { name: "Frankfurt", coordinates: [8.68, 50.11], type: "city", priority: 4 },
-  { name: "Tokyo", coordinates: [139.69, 35.68], type: "city", priority: 6 },
-  { name: "Beijing", coordinates: [116.41, 39.9], type: "city", priority: 5 },
-  { name: "Shanghai", coordinates: [121.47, 31.23], type: "city", priority: 5 },
-  { name: "Sydney", coordinates: [151.21, -33.87], type: "city", priority: 5 }
+  { name: "United States", coordinates: [-100, 39], type: "country", priority: 10, maxZoom: 2.2 },
+  { name: "Canada", coordinates: [-108, 57], type: "country", priority: 9, maxZoom: 2.2 },
+  { name: "Mexico", coordinates: [-102, 23], type: "country", priority: 8, maxZoom: 2.2 },
+  { name: "Greenland", coordinates: [-42, 72], type: "country", priority: 5, maxZoom: 2.2 },
+  { name: "Iceland", coordinates: [-19, 65], type: "country", priority: 4, maxZoom: 2.2 },
+  { name: "United Kingdom", coordinates: [-3, 55], type: "country", priority: 6, maxZoom: 2.2 },
+  { name: "France", coordinates: [2, 46], type: "country", priority: 5, maxZoom: 2.2 },
+  { name: "Germany", coordinates: [10, 51], type: "country", priority: 5, maxZoom: 2.2 },
+  { name: "Spain", coordinates: [-4, 40], type: "country", priority: 4, maxZoom: 2.2 },
+  { name: "Brazil", coordinates: [-52, -10], type: "country", priority: 7, maxZoom: 2.2 },
+  { name: "Argentina", coordinates: [-64, -35], type: "country", priority: 5, maxZoom: 2.2 },
+  { name: "Russia", coordinates: [90, 60], type: "country", priority: 7, maxZoom: 2.2 },
+  { name: "China", coordinates: [104, 35], type: "country", priority: 8, maxZoom: 2.2 },
+  { name: "Japan", coordinates: [138, 37], type: "country", priority: 6, maxZoom: 2.2 },
+  { name: "India", coordinates: [79, 22], type: "country", priority: 7, maxZoom: 2.2 },
+  { name: "Australia", coordinates: [134, -25], type: "country", priority: 7, maxZoom: 2.2 },
+  { name: "New York", coordinates: [-74.01, 40.71], type: "city", priority: 8, minZoom: 1.15 },
+  { name: "Chicago", coordinates: [-87.63, 41.88], type: "city", priority: 7, minZoom: 1.15 },
+  { name: "Atlanta", coordinates: [-84.39, 33.75], type: "city", priority: 7, minZoom: 1.15 },
+  { name: "Dallas", coordinates: [-96.8, 32.78], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "Los Angeles", coordinates: [-118.24, 34.05], type: "city", priority: 8, minZoom: 1.15 },
+  { name: "Seattle", coordinates: [-122.33, 47.61], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "Denver", coordinates: [-104.99, 39.74], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "Miami", coordinates: [-80.19, 25.76], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "London", coordinates: [-0.13, 51.51], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "Paris", coordinates: [2.35, 48.86], type: "city", priority: 5, minZoom: 1.15 },
+  { name: "Frankfurt", coordinates: [8.68, 50.11], type: "city", priority: 4, minZoom: 1.15 },
+  { name: "Tokyo", coordinates: [139.69, 35.68], type: "city", priority: 6, minZoom: 1.15 },
+  { name: "Beijing", coordinates: [116.41, 39.9], type: "city", priority: 5, minZoom: 1.15 },
+  { name: "Shanghai", coordinates: [121.47, 31.23], type: "city", priority: 5, minZoom: 1.15 },
+  { name: "Sydney", coordinates: [151.21, -33.87], type: "city", priority: 5, minZoom: 1.15 }
+];
+const US_METRO_LABELS = [
+  { name: "Boston", coordinates: [-71.06, 42.36] },
+  { name: "Washington", coordinates: [-77.04, 38.91] },
+  { name: "Charlotte", coordinates: [-80.84, 35.23] },
+  { name: "Detroit", coordinates: [-83.05, 42.33] },
+  { name: "Minneapolis", coordinates: [-93.27, 44.98] },
+  { name: "Houston", coordinates: [-95.37, 29.76] },
+  { name: "Phoenix", coordinates: [-112.07, 33.45] },
+  { name: "San Francisco", coordinates: [-122.42, 37.77] },
+  { name: "Salt Lake City", coordinates: [-111.89, 40.76] },
+  { name: "Las Vegas", coordinates: [-115.14, 36.17] }
 ];
 const AIRLINE_STORIES = {
   Alaska: {
@@ -83,6 +99,7 @@ const markers = new Map();
 const routeFeatureCache = new Map();
 const hubsByCode = new Map(HUBS.map((hub) => [hub.code, hub]));
 const allAirlines = Object.keys(ROUTE_NETWORKS);
+const allRouteAirports = Object.values(ROUTE_AIRPORTS);
 const hoverCard = document.querySelector("#hover-card");
 const routeTooltip = document.querySelector("#route-tooltip");
 const airlineStory = document.querySelector("#airline-story");
@@ -117,6 +134,9 @@ let height;
 let baseScale;
 let zoomFactor = 1;
 let land;
+let countryBorders;
+let stateBorders;
+let stateLoadPromise;
 let routeFeatures = [];
 let routeCollections = [];
 let routeAirportCodes = new Set();
@@ -168,8 +188,7 @@ function routePriority(feature) {
   return (hubsByCode.get(origin)?.enplanements || 0) + (hubsByCode.get(destination)?.enplanements || 0);
 }
 
-function isVisible(coordinates) {
-  const center = projection.invert(projection.translate());
+function isVisible(coordinates, center = projection.invert(projection.translate())) {
   return d3.geoDistance(coordinates, center) < Math.PI / 2;
 }
 
@@ -194,7 +213,10 @@ function drawGlobe() {
   drawPath(sphere, "#111923", "#55606d", 0.7, 1);
   drawPath(graticule, null, "#718090", 0.35, 0.08);
   if (land) drawPath(land, "#202b36", "#6d7986", 0.4, 0.54);
+  if (countryBorders) drawPath(countryBorders, null, "#78838f", 0.38, zoomFactor < REGIONAL_ZOOM ? 0.22 : 0.12);
+  if (zoomFactor >= REGIONAL_ZOOM && stateBorders) drawPath(stateBorders, null, "#8b96a2", 0.5, 0.24);
   drawReferenceLabels();
+  if (zoomFactor >= REGIONAL_ZOOM) drawRegionalAirports();
 
   if (routeCollections.length) {
     context.save();
@@ -216,6 +238,7 @@ function drawGlobe() {
       context.fill();
     });
   }
+  if (zoomFactor >= CLOSE_REGIONAL_ZOOM) drawAirportCodes();
   context.globalAlpha = 1;
 }
 
@@ -229,7 +252,10 @@ function updateRouteOverlays() {
 function drawReferenceLabels() {
   const center = projection.invert(projection.translate());
   const occupied = [];
-  const visibleLabels = REFERENCE_LABELS
+  const labels = zoomFactor >= CLOSE_REGIONAL_ZOOM
+    ? [...REFERENCE_LABELS, ...US_METRO_LABELS.map((label) => ({ ...label, type: "metro", priority: 4, minZoom: CLOSE_REGIONAL_ZOOM }))]
+    : REFERENCE_LABELS;
+  const visibleLabels = labels
     .map((label) => {
       const distance = d3.geoDistance(label.coordinates, center);
       const edgeOpacity = Math.max(0, Math.min(1, (Math.cos(distance) - 0.12) / 0.6));
@@ -238,7 +264,11 @@ function drawReferenceLabels() {
       const width = label.name.length * fontSize * 0.62;
       return { ...label, x, y, edgeOpacity, width, height: fontSize + 3 };
     })
-    .filter((label) => label.edgeOpacity > 0)
+    .filter((label) =>
+      label.edgeOpacity > 0 &&
+      zoomFactor >= (label.minZoom || MIN_ZOOM) &&
+      zoomFactor <= (label.type === "country" ? Math.min(label.maxZoom || MAX_ZOOM, 1.55) : (label.maxZoom || MAX_ZOOM))
+    )
     .sort((a, b) => d3.descending(a.priority, b.priority) || d3.ascending(a.type, b.type));
 
   visibleLabels.forEach((label) => {
@@ -265,13 +295,69 @@ function drawReferenceLabels() {
   context.globalAlpha = 1;
 }
 
+function drawRegionalAirports() {
+  const center = projection.invert(projection.translate());
+  context.fillStyle = "#8e99a5";
+  context.globalAlpha = zoomFactor >= CLOSE_REGIONAL_ZOOM ? 0.2 : 0.12;
+  allRouteAirports.forEach((airport) => {
+    if (!isVisible(airport.coordinates, center)) return;
+    const [x, y] = projection(airport.coordinates);
+    context.beginPath();
+    context.arc(x, y, zoomFactor >= CLOSE_REGIONAL_ZOOM ? 1 : 0.7, 0, Math.PI * 2);
+    context.fill();
+  });
+  context.globalAlpha = 1;
+}
+
+function drawAirportCodes() {
+  const occupied = [];
+  const center = projection.invert(projection.translate());
+  const airports = routeAirportCodes.size
+    ? [...routeAirportCodes].map((code) => ROUTE_AIRPORTS[code])
+    : HUBS.map((hub) => ({ code: hub.code, coordinates: hub.coordinates }));
+  context.font = '500 7px "DM Mono", monospace';
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.fillStyle = "#929ca7";
+  airports
+    .filter((airport) => isVisible(airport.coordinates, center))
+    .slice(0, 90)
+    .forEach((airport) => {
+      const [x, y] = projection(airport.coordinates);
+      const box = { left: x + 4, right: x + 25, top: y - 6, bottom: y + 4 };
+      const overlaps = occupied.some((other) =>
+        box.left < other.right && box.right > other.left &&
+        box.top < other.bottom && box.bottom > other.top
+      );
+      if (!overlaps) {
+        occupied.push(box);
+        context.globalAlpha = 0.52;
+        context.fillText(airport.code, x + 4, y - 2);
+      }
+    });
+  context.globalAlpha = 1;
+}
+
+function ensureStateBorders() {
+  if (stateBorders || stateLoadPromise) return;
+  stateLoadPromise = d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
+    .then((us) => {
+      stateBorders = topojson.mesh(us, us.objects.states, (a, b) => a !== b);
+      requestRender();
+    })
+    .catch(() => {
+      stateLoadPromise = undefined;
+    });
+}
+
 function updateHubPositions() {
   hubLayer.selectAll(".hub-marker")
     .attr("transform", (hub) => {
       const [x, y] = projection(hub.coordinates);
       return `translate(${x},${y})`;
     })
-    .classed("off-globe", (hub) => !isVisible(hub.coordinates));
+    .classed("off-globe", (hub) => !isVisible(hub.coordinates))
+    .classed("lod-hidden", (hub) => zoomFactor < REGIONAL_ZOOM && hub.role !== "Primary hub");
 
   if (hoveredHub) {
     if (isVisible(hoveredHub.coordinates)) {
@@ -449,8 +535,14 @@ function renderMarkers() {
         .on("mouseenter focus", function (event, hub) { showHoverCard(hub, this); })
         .on("mouseleave blur", hideHoverCard)
         .on("click", (event, hub) => {
+          if (event.detail > 1) return;
           event.stopPropagation();
           selectHub(hub);
+        })
+        .on("dblclick", (event, hub) => {
+          event.preventDefault();
+          event.stopPropagation();
+          focusCoordinates(hub.coordinates, Math.max(zoomFactor, 2.65));
         });
       group.append("circle")
         .attr("class", "hub-halo")
@@ -525,19 +617,7 @@ function selectHub(hub) {
 }
 
 function rotateToHub(hub) {
-  pauseRotation(3200);
-  const start = projection.rotate();
-  const target = [-hub.coordinates[0], -hub.coordinates[1], 0];
-  d3.transition()
-    .duration(850)
-    .ease(d3.easeCubicInOut)
-    .tween("rotate", () => {
-      const interpolate = d3.interpolate(start, target);
-      return (time) => {
-        projection.rotate(interpolate(time));
-        requestRender();
-      };
-    });
+  focusCoordinates(hub.coordinates, zoomFactor, 850);
 }
 
 function renderList() {
@@ -619,11 +699,13 @@ function resize() {
   projection
     .translate([width * (window.innerWidth > 700 ? 0.61 : 0.5), height * (window.innerWidth > 700 ? 0.55 : 0.38)])
     .scale(baseScale * zoomFactor);
+  if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
   requestRender();
 }
 
 svg.call(d3.drag()
   .on("start", () => {
+    d3.select(mapElement).interrupt("globe-view");
     motion.dragging = true;
     pauseRotation();
   })
@@ -644,11 +726,50 @@ svg.call(d3.drag()
 
 svg.on("wheel", (event) => {
   event.preventDefault();
+  d3.select(mapElement).interrupt("globe-view");
   pauseRotation();
-  zoomFactor = Math.max(0.72, Math.min(1.85, zoomFactor * Math.exp(-event.deltaY * 0.001)));
-  projection.scale(baseScale * zoomFactor);
-  requestRender();
+  setZoomFactor(zoomFactor * Math.exp(-event.deltaY * 0.0012));
 }, { passive: false });
+
+svg.on("dblclick", (event) => {
+  event.preventDefault();
+  const point = d3.pointer(event, svg.node());
+  const [centerX, centerY] = projection.translate();
+  if (Math.hypot(point[0] - centerX, point[1] - centerY) > projection.scale()) return;
+  focusCoordinates(projection.invert(point), Math.max(REGIONAL_ZOOM, zoomFactor * 1.55));
+});
+
+function setZoomFactor(nextZoom) {
+  zoomFactor = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+  projection.scale(baseScale * zoomFactor);
+  if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
+  requestRender();
+}
+
+function focusCoordinates(coordinates, targetZoom, duration = 760) {
+  pauseRotation(duration + 1400);
+  const startRotation = projection.rotate();
+  const targetRotation = [-coordinates[0], -coordinates[1], 0];
+  const startZoom = zoomFactor;
+  const endZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
+  d3.select(mapElement)
+    .interrupt("globe-view")
+    .transition("globe-view")
+    .duration(duration)
+    .ease(d3.easeCubicInOut)
+    .tween("view", () => {
+      const interpolateRotation = d3.interpolate(startRotation, targetRotation);
+      const interpolateZoom = d3.interpolateNumber(startZoom, endZoom);
+      return (time) => {
+        projection.rotate(interpolateRotation(time));
+        setZoomFactor(interpolateZoom(time));
+      };
+    });
+}
+
+function resetGlobe() {
+  focusCoordinates([-98, 36], 1, 820);
+}
 
 function animate(now) {
   const elapsed = Math.min(now - motion.lastFrame, 80);
@@ -678,10 +799,11 @@ requestAnimationFrame(animate);
 d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
   .then((world) => {
     land = topojson.feature(world, world.objects.land);
+    countryBorders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
     requestRender();
   })
   .catch(() => {
-    document.querySelector(".map-tip").textContent = "Drag to rotate · Scroll to zoom · Base layer unavailable";
+    document.querySelector(".map-tip").textContent = "Scroll to zoom · Drag to rotate · Base layer unavailable";
   });
 
 routeToggle.addEventListener("change", (event) => {
@@ -698,13 +820,15 @@ document.querySelector("#reset-filters").addEventListener("click", () => {
   filters.query = "";
   routeState.visible = false;
   routeState.hubCode = undefined;
-  zoomFactor = 1;
-  projection.rotate([98, -36, 0]).scale(baseScale);
   pauseRotation();
   document.querySelector("#airport-search").value = "";
   renderFilters();
   refreshView();
+  resetGlobe();
 });
+document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor * 1.45, 420));
+document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor / 1.45, 420));
+document.querySelector("#reset-globe").addEventListener("click", resetGlobe);
 
 const modalBackdrop = document.querySelector("#modal-backdrop");
 document.querySelector("#about-button").addEventListener("click", () => { modalBackdrop.hidden = false; });
