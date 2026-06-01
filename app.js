@@ -105,6 +105,7 @@ const ANALYTIC_ROUTES = allAirlines.flatMap((airline) =>
 );
 const hoverCard = document.querySelector("#hover-card");
 const routeTooltip = document.querySelector("#route-tooltip");
+const networkTooltip = document.querySelector("#network-tooltip");
 const airlineStory = document.querySelector("#airline-story");
 const airportList = document.querySelector("#airport-list");
 const routeToggle = document.querySelector("#show-routes");
@@ -392,9 +393,10 @@ function renderNetworkView(routes) {
       : route.destination === centerCode ? route.origin : undefined;
     if (!connectedCode) return;
     const key = connectedCode;
-    if (!connections.has(key)) connections.set(key, { code: connectedCode, strength: 0, routes: [] });
+    if (!connections.has(key)) connections.set(key, { code: connectedCode, strength: 0, routes: [], airlines: new Set() });
     connections.get(key).strength += 1;
     connections.get(key).routes.push(route);
+    connections.get(key).airlines.add(route.airline);
   });
   const strongestConnections = [...connections.values()]
     .sort((a, b) => d3.descending(a.strength, b.strength) || d3.descending(stats.get(a.code)?.routes || 0, stats.get(b.code)?.routes || 0))
@@ -428,7 +430,8 @@ function renderNetworkView(routes) {
     source: centerCode,
     target: connection.code,
     strength: connection.strength,
-    routes: connection.routes
+    routes: connection.routes,
+    airlines: [...connection.airlines]
   }));
   const radius = d3.scaleSqrt().domain(d3.extent(nodes, (node) => node.importance)).range([3.2, 10]);
   const linkWidth = d3.scaleLinear().domain([1, d3.max(links, (link) => link.strength) || 1]).range([0.7, 3]);
@@ -448,20 +451,41 @@ function renderNetworkView(routes) {
   for (let index = 0; index < 150; index += 1) simulation.tick();
   const topLabelIds = new Set([centerCode, ...strongestConnections.slice(0, 5).map((connection) => connection.code)]);
   positionNetworkLabels(nodes, topLabelIds, radius);
-  networkChart.append("g").selectAll("line").data(links).join("line")
+  const linkLayer = networkChart.append("g").attr("class", "network-links");
+  const nodeLayer = networkChart.append("g").attr("class", "network-nodes");
+  linkLayer.selectAll(".network-link").data(links).join("line")
     .attr("class", "network-link")
     .attr("stroke-width", (link) => linkWidth(link.strength))
     .attr("x1", (link) => link.source.x).attr("y1", (link) => link.source.y)
+    .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y);
+  linkLayer.selectAll(".network-link-hit").data(links).join("line")
+    .attr("class", "network-link-hit")
+    .attr("x1", (link) => link.source.x).attr("y1", (link) => link.source.y)
     .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y)
-    .on("mouseenter", function (_, link) {
-      d3.select(this).classed("hovered", true);
+    .on("mouseenter", function (event, link) {
+      highlightNetworkLink(this, linkLayer, nodeLayer, link, true);
       highlightGlobeConnection(link.routes);
+      showNetworkTooltip(event, link);
     })
-    .on("mouseleave", function () {
-      d3.select(this).classed("hovered", false);
+    .on("mousemove", (event) => positionNetworkTooltip(event))
+    .on("mouseleave", function (_, link) {
+      highlightNetworkLink(this, linkLayer, nodeLayer, link, false);
       clearGlobeConnectionHighlight();
+      hideNetworkTooltip();
+    })
+    .on("click", function (event, link) {
+      event.stopPropagation();
+      highlightNetworkLink(this, linkLayer, nodeLayer, link, true);
+      highlightGlobeConnection(link.routes);
+      showNetworkTooltip(event, link);
     });
-  networkChart.append("g").selectAll("circle").data(nodes).join("circle")
+  networkChart.on("click.dismiss-tooltip", () => {
+    linkLayer.classed("hover-active", false).selectAll(".network-link").classed("hovered", false);
+    nodeLayer.selectAll(".network-node").classed("link-endpoint", false);
+    clearGlobeConnectionHighlight();
+    hideNetworkTooltip(true);
+  });
+  nodeLayer.selectAll("circle").data(nodes).join("circle")
     .attr("class", (node) => `network-node ${node.center ? "selected" : ""}`)
     .attr("cx", (node) => node.x).attr("cy", (node) => node.y).attr("r", (node) => radius(node.importance))
     .attr("fill", (node) => networkRoleColor(node.role))
@@ -513,6 +537,35 @@ function networkNodeRole(code) {
 
 function networkRoleColor(role) {
   return role === "primary" ? "#ffc857" : role === "focus" ? "#70c79b" : "#73808d";
+}
+
+function highlightNetworkLink(element, linkLayer, nodeLayer, link, active) {
+  linkLayer.classed("hover-active", active);
+  linkLayer.selectAll(".network-link").classed("hovered", false);
+  if (active) linkLayer.selectAll(".network-link").filter((candidate) => candidate === link).classed("hovered", true);
+  const endpointIds = new Set([link.source.id, link.target.id]);
+  nodeLayer.selectAll(".network-node").classed("link-endpoint", (node) => active && endpointIds.has(node.id));
+}
+
+function showNetworkTooltip(event, link) {
+  const airlineNames = link.airlines.map((airline) => AIRLINE_STORIES[airline]?.name || airline);
+  networkTooltip.innerHTML = `
+    <strong>${link.source.id} → ${link.target.id}</strong>
+    <p>Airlines: <b>${airlineNames.join(", ")}</b></p>
+    <p>Connection strength: <b>${link.strength}</b></p>
+  `;
+  positionNetworkTooltip(event);
+  networkTooltip.classList.add("visible");
+}
+
+function positionNetworkTooltip(event) {
+  networkTooltip.style.left = `${Math.max(8, Math.min(event.clientX + 12, window.innerWidth - 244))}px`;
+  networkTooltip.style.top = `${Math.max(8, Math.min(event.clientY + 12, window.innerHeight - 104))}px`;
+}
+
+function hideNetworkTooltip(force = false) {
+  if (!force && window.matchMedia("(pointer: coarse)").matches) return;
+  networkTooltip.classList.remove("visible");
 }
 
 function highlightGlobeConnection(routes) {

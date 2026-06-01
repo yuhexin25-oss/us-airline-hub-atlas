@@ -218,9 +218,12 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .network-metrics b { display: block; margin-top: 2px; overflow: hidden; color: var(--accent); font: 500 11px "Manrope", sans-serif; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
 .network-empty { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .network-link { cursor: pointer; stroke: rgba(133,147,161,.24); transition: stroke .18s, opacity .18s; }
+.network-links.hover-active .network-link { opacity: .12; }
 .network-link.hovered { stroke: var(--accent); opacity: 1; }
+.network-link-hit { cursor: pointer; stroke: transparent; stroke-width: 14; pointer-events: stroke; }
 .network-node { cursor: pointer; stroke: rgba(255,255,255,.6); stroke-width: .8; }
 .network-node.selected { stroke: var(--accent); stroke-width: 2.4; }
+.network-node.link-endpoint { stroke: var(--accent); stroke-width: 2; }
 .network-label { fill: #cbd4dc; font-size: 7px; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .network-label.always-visible, .network-label.hovered { opacity: 1; }
 .network-legend { display: flex; flex-wrap: wrap; gap: 7px 11px; padding-top: 8px; border-top: 1px solid var(--line); }
@@ -277,6 +280,16 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   font: 500 10px "DM Mono", monospace; letter-spacing: .06em;
 }
 .route-tooltip.visible { display: block; }
+.network-tooltip {
+  position: fixed; z-index: 8; display: none; width: 230px; padding: 9px 10px; pointer-events: none;
+  color: var(--muted); border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
+  background: rgba(8,14,24,.97); box-shadow: 0 10px 24px rgba(0,0,0,.3);
+  font: 10px/1.45 "DM Mono", monospace;
+}
+.network-tooltip.visible { display: block; }
+.network-tooltip strong { display: block; color: var(--accent); font-size: 12px; }
+.network-tooltip p { margin-top: 4px; }
+.network-tooltip b { color: var(--ink); font-weight: 500; }
 
 .legend {
   position: absolute; right: 378px; bottom: 48px; padding: 12px 14px; color: var(--muted);
