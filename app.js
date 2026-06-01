@@ -5,6 +5,44 @@ const passengerLongFormat = d3.format(",");
 const radiusScale = d3.scaleSqrt()
   .domain(d3.extent(HUBS, (hub) => hub.enplanements))
   .range([4.5, 12]);
+const AIRLINE_STORIES = {
+  Alaska: {
+    name: "Alaska Airlines", primaryHub: "SEA", focusCities: ["PDX", "ANC", "SFO", "LAX"],
+    pattern: "Alaska's network is strongly West Coast and Pacific Northwest oriented, with SEA acting as its main organizing hub."
+  },
+  American: {
+    name: "American Airlines", primaryHub: "DFW", focusCities: ["CLT", "PHX", "MIA", "DCA"],
+    pattern: "American's network uses DFW as a central connector while major eastern and southwestern hubs extend its national reach."
+  },
+  Delta: {
+    name: "Delta Air Lines", primaryHub: "ATL", focusCities: ["MSP", "DTW", "SLC", "LAX", "JFK"],
+    pattern: "Delta's network radiates from ATL and is reinforced by a distributed set of regional hubs across the country."
+  },
+  Frontier: {
+    name: "Frontier Airlines", primaryHub: "DEN", focusCities: ["MCO", "LAS", "PHX", "ATL"],
+    pattern: "Frontier's network is organized around DEN with leisure-oriented connections spreading toward large destination markets."
+  },
+  JetBlue: {
+    name: "JetBlue Airways", primaryHub: "JFK", focusCities: ["BOS", "FLL", "MCO", "LAX"],
+    pattern: "JetBlue's network is East Coast oriented, linking its New York base with Florida, Boston, and selected transcontinental markets."
+  },
+  Southwest: {
+    name: "Southwest Airlines", primaryHub: "DAL", focusCities: ["BWI", "DEN", "LAS", "HOU", "MDW"],
+    pattern: "Southwest's network is broadly distributed, using several strong operating bases rather than a single dominant connecting hub."
+  },
+  Spirit: {
+    name: "Spirit Airlines", primaryHub: "FLL", focusCities: ["MCO", "LAS", "DFW", "DTW"],
+    pattern: "Spirit's network is leisure-focused, with FLL and other large destination markets anchoring its point-to-point structure."
+  },
+  "Sun Country": {
+    name: "Sun Country Airlines", primaryHub: "MSP", focusCities: ["LAS", "MCO", "PHX", "DFW"],
+    pattern: "Sun Country's network is compact and MSP-centered, with spokes aimed primarily at leisure destinations."
+  },
+  United: {
+    name: "United Airlines", primaryHub: "ORD", focusCities: ["DEN", "IAH", "EWR", "SFO", "IAD"],
+    pattern: "United's network forms a national hub system, with ORD and DEN linking strong coastal and interior gateways."
+  }
+};
 
 const filters = { role: "All", airlines: new Set(), query: "" };
 const routeState = { visible: false, hubCode: undefined, hoveredRoute: undefined };
@@ -14,6 +52,7 @@ const hubsByCode = new Map(HUBS.map((hub) => [hub.code, hub]));
 const allAirlines = Object.keys(ROUTE_NETWORKS);
 const hoverCard = document.querySelector("#hover-card");
 const routeTooltip = document.querySelector("#route-tooltip");
+const airlineStory = document.querySelector("#airline-story");
 const airportList = document.querySelector("#airport-list");
 const routeToggle = document.querySelector("#show-routes");
 const mapElement = document.querySelector("#map");
@@ -245,6 +284,48 @@ function updateRouteControls() {
     : "Select an airline or hub to enable a focused network of up to 240 routes.";
 }
 
+function renderAirlineStory() {
+  const selectedAirlines = [...filters.airlines];
+  if (selectedAirlines.length === 0) {
+    const context = routeState.hubCode
+      ? `Showing routes connected to ${routeState.hubCode}. Select an airline to explore its broader hub structure.`
+      : "Select an airline to explore how its hubs and focus cities organize the visible route network.";
+    airlineStory.innerHTML = `
+      <p class="eyebrow">Network story</p>
+      <h3>Explore an airline</h3>
+      <p class="story-empty">${context}</p>
+    `;
+    return;
+  }
+  if (selectedAirlines.length > 1) {
+    airlineStory.innerHTML = `
+      <p class="eyebrow">Network comparison</p>
+      <h3>${selectedAirlines.length} airlines selected</h3>
+      <div class="story-stats">
+        <span><b>${routeFeatures.length}</b> Visible routes</span>
+        <span><b>${routeAirportCodes.size}</b> Airports served</span>
+      </div>
+      <p class="story-pattern">Compare the shared reach and contrasting hub patterns of ${selectedAirlines.join(", ")}.</p>
+    `;
+    return;
+  }
+
+  const story = AIRLINE_STORIES[selectedAirlines[0]];
+  airlineStory.innerHTML = `
+    <p class="eyebrow">Selected airline</p>
+    <h3>${story.name}</h3>
+    <dl>
+      <div><dt>Primary hub</dt><dd>${story.primaryHub}</dd></div>
+      <div><dt>Focus cities</dt><dd>${story.focusCities.join(", ")}</dd></div>
+    </dl>
+    <div class="story-stats">
+      <span><b>${routeFeatures.length}</b> Visible routes</span>
+      <span><b>${routeAirportCodes.size}</b> Airports served</span>
+    </div>
+    <p class="story-pattern"><b>Network pattern:</b> ${story.pattern}</p>
+  `;
+}
+
 function refreshRoutes() {
   routeFeatures = selectedRouteFeatures();
   if (!routeFeatures.includes(routeState.hoveredRoute)) {
@@ -271,6 +352,7 @@ function refreshRoutes() {
     .join("");
   bindRouteHover();
   updateRouteControls();
+  renderAirlineStory();
   updateHubStyles();
   requestRender();
 }
@@ -500,7 +582,7 @@ function animate(now) {
   motion.lastFrame = now;
   const shouldRotate = !motion.reducedMotion && !motion.dragging && !motion.hovering && !routeState.hubCode;
   if (shouldRotate) {
-    const speed = now < motion.resumeAt ? 0.0015 : 0.004;
+    const speed = now < motion.resumeAt ? 0.00035 : 0.001;
     const rotation = projection.rotate();
     projection.rotate([rotation[0] + elapsed * speed, rotation[1], rotation[2]]);
     requestRender();
