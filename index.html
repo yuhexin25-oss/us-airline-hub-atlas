@@ -7,7 +7,7 @@
       name="description"
       content="Explore U.S. airline hubs and focus cities with FAA enplanement data and BTS carrier context."
     />
-    <title>U.S. Airline Hub Atlas</title>
+    <title>U.S. Airline Network Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -25,13 +25,22 @@
           <div class="brand-mark" aria-hidden="true">✦</div>
           <div>
             <p class="eyebrow">Network Intelligence / 2024 Snapshot</p>
-            <h1>U.S. Airline Hub Atlas</h1>
+            <h1>U.S. Airline Network Dashboard</h1>
           </div>
         </div>
         <button class="about-button" id="about-button" type="button">
           About the data
         </button>
       </header>
+
+      <section class="kpi-strip" aria-label="Network summary">
+        <article><span>Total airports</span><strong id="kpi-airports">0</strong></article>
+        <article><span>Total routes</span><strong id="kpi-routes">0</strong></article>
+        <article><span>Total airlines</span><strong id="kpi-airlines">0</strong></article>
+        <article><span>Largest hub</span><strong id="kpi-largest-hub">—</strong></article>
+        <article><span>Selected routes</span><strong id="kpi-selected-routes">0</strong></article>
+        <article><span>Selected airports</span><strong id="kpi-selected-airports">0</strong></article>
+      </section>
 
       <aside class="control-panel">
         <div class="panel-intro">
@@ -103,6 +112,43 @@
             <span id="visible-count">0 shown</span>
           </div>
           <div class="airport-list" id="airport-list"></div>
+        </section>
+      </aside>
+
+      <aside class="analysis-panel" aria-label="Airline network analysis">
+        <section class="analysis-card">
+          <div class="analysis-heading">
+            <div>
+              <p class="eyebrow">Hub hierarchy</p>
+              <h2>Top connected hubs</h2>
+            </div>
+            <span id="ranking-context">All airlines</span>
+          </div>
+          <svg class="chart" id="hub-ranking-chart" role="img" aria-label="Horizontal bar chart ranking airport hubs"></svg>
+        </section>
+
+        <section class="analysis-card">
+          <div class="analysis-heading">
+            <div>
+              <p class="eyebrow">Carrier scale</p>
+              <h2>Airline comparison</h2>
+            </div>
+            <span>Routes / airports</span>
+          </div>
+          <svg class="chart" id="airline-comparison-chart" role="img" aria-label="Bar chart comparing airline networks"></svg>
+        </section>
+
+        <section class="analysis-card hub-detail" id="hub-detail" aria-live="polite"></section>
+
+        <section class="analysis-card">
+          <div class="analysis-heading">
+            <div>
+              <p class="eyebrow">Network structure</p>
+              <h2>Hub connectivity</h2>
+            </div>
+            <span>Filtered sample</span>
+          </div>
+          <svg class="network-chart" id="network-chart" role="img" aria-label="Force-directed airline route network"></svg>
         </section>
       </aside>
 

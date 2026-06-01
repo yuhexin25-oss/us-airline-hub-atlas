@@ -100,11 +100,18 @@ const routeFeatureCache = new Map();
 const hubsByCode = new Map(HUBS.map((hub) => [hub.code, hub]));
 const allAirlines = Object.keys(ROUTE_NETWORKS);
 const allRouteAirports = Object.values(ROUTE_AIRPORTS);
+const ANALYTIC_ROUTES = allAirlines.flatMap((airline) =>
+  ROUTE_NETWORKS[airline].map(([origin, destination]) => ({ airline, origin, destination }))
+);
 const hoverCard = document.querySelector("#hover-card");
 const routeTooltip = document.querySelector("#route-tooltip");
 const airlineStory = document.querySelector("#airline-story");
 const airportList = document.querySelector("#airport-list");
 const routeToggle = document.querySelector("#show-routes");
+const hubRankingChart = d3.select("#hub-ranking-chart");
+const airlineComparisonChart = d3.select("#airline-comparison-chart");
+const networkChart = d3.select("#network-chart");
+const hubDetail = document.querySelector("#hub-detail");
 const mapElement = document.querySelector("#map");
 const canvas = d3.select(mapElement).append("canvas").attr("class", "globe-canvas").node();
 const context = canvas.getContext("2d");
@@ -186,6 +193,213 @@ function selectedRouteFeatures() {
 function routePriority(feature) {
   const { origin, destination } = feature.properties;
   return (hubsByCode.get(origin)?.enplanements || 0) + (hubsByCode.get(destination)?.enplanements || 0);
+}
+
+function analyticRoutePriority(route) {
+  return (hubsByCode.get(route.origin)?.enplanements || 0) + (hubsByCode.get(route.destination)?.enplanements || 0);
+}
+
+function selectedAnalyticsRoutes() {
+  if (!filters.airlines.size) return ANALYTIC_ROUTES;
+  return ANALYTIC_ROUTES.filter((route) => filters.airlines.has(route.airline));
+}
+
+function airportStats(routes) {
+  const stats = new Map();
+  routes.forEach((route) => {
+    [[route.origin, route.destination], [route.destination, route.origin]].forEach(([code, connectedCode]) => {
+      if (!stats.has(code)) {
+        const airport = ROUTE_AIRPORTS[code] || hubsByCode.get(code);
+        stats.set(code, {
+          code,
+          city: airport?.city || code,
+          routes: 0,
+          airlines: new Set(),
+          connections: new Set()
+        });
+      }
+      const airport = stats.get(code);
+      airport.routes += 1;
+      airport.airlines.add(route.airline);
+      airport.connections.add(connectedCode);
+    });
+  });
+  return stats;
+}
+
+function airlineStats() {
+  return allAirlines.map((airline) => {
+    const routes = ANALYTIC_ROUTES.filter((route) => route.airline === airline);
+    return {
+      airline,
+      routes: routes.length,
+      airports: new Set(routes.flatMap((route) => [route.origin, route.destination])).size,
+      primaryHub: AIRLINE_STORIES[airline]?.primaryHub || "—"
+    };
+  });
+}
+
+function highlightDashboardHub(code, active) {
+  markers.get(code)?.classList.toggle("chart-hover", active);
+}
+
+function setSingleAirline(airline) {
+  filters.airlines.clear();
+  if (airline) filters.airlines.add(airline);
+  routeState.hubCode = undefined;
+  routeState.visible = Boolean(airline);
+  renderFilters();
+  refreshView();
+}
+
+function selectAirportCode(code) {
+  routeState.hubCode = routeState.hubCode === code ? undefined : code;
+  routeState.visible = Boolean(routeState.hubCode || filters.airlines.size);
+  renderFilters();
+  refreshView();
+  const airport = ROUTE_AIRPORTS[code] || hubsByCode.get(code);
+  if (airport) focusCoordinates(airport.coordinates, Math.max(zoomFactor, 1.35), 700);
+}
+
+function renderDashboard() {
+  const routes = selectedAnalyticsRoutes();
+  const stats = airportStats(routes);
+  renderKpis(routes, stats);
+  renderHubRanking(stats);
+  renderAirlineComparison();
+  renderHubDetail(stats);
+  renderNetworkView(routes);
+}
+
+function renderKpis(routes, stats) {
+  const globalStats = airportStats(ANALYTIC_ROUTES);
+  const largestHub = [...globalStats.values()].sort((a, b) => d3.descending(a.routes, b.routes))[0];
+  document.querySelector("#kpi-airports").textContent = Object.keys(ROUTE_AIRPORTS).length;
+  document.querySelector("#kpi-routes").textContent = passengerLongFormat(ANALYTIC_ROUTES.length);
+  document.querySelector("#kpi-airlines").textContent = allAirlines.length;
+  document.querySelector("#kpi-largest-hub").textContent = largestHub?.code || "—";
+  document.querySelector("#kpi-selected-routes").textContent = filters.airlines.size ? passengerLongFormat(routes.length) : "—";
+  document.querySelector("#kpi-selected-airports").textContent = filters.airlines.size ? stats.size : "—";
+}
+
+function renderHubRanking(stats) {
+  const width = hubRankingChart.node()?.clientWidth || 314;
+  const height = 184;
+  const margin = { top: 4, right: 30, bottom: 20, left: 40 };
+  const ranked = HUBS
+    .map((hub) => ({ ...hub, degree: stats.get(hub.code)?.routes || 0 }))
+    .filter((hub) => hub.degree && airportMatches(hub))
+    .sort((a, b) => d3.descending(a.degree, b.degree))
+    .slice(0, 8);
+  const x = d3.scaleLinear().domain([0, d3.max(ranked, (hub) => hub.degree) || 1]).nice().range([margin.left, width - margin.right]);
+  const y = d3.scaleBand().domain(ranked.map((hub) => hub.code)).range([margin.top, height - margin.bottom]).padding(0.26);
+  hubRankingChart.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+  hubRankingChart.append("g").attr("class", "chart-axis").attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(x).ticks(4).tickSizeOuter(0));
+  hubRankingChart.append("g").selectAll("rect").data(ranked).join("rect")
+    .attr("class", "chart-bar")
+    .attr("x", margin.left).attr("y", (hub) => y(hub.code)).attr("height", y.bandwidth())
+    .attr("width", (hub) => x(hub.degree) - margin.left)
+    .attr("rx", 2).attr("fill", (hub) => AIRLINE_COLORS[hub.anchor] || "#ffc857").attr("opacity", 0.7)
+    .on("mouseenter", (_, hub) => highlightDashboardHub(hub.code, true))
+    .on("mouseleave", (_, hub) => highlightDashboardHub(hub.code, false))
+    .on("click", (_, hub) => selectAirportCode(hub.code));
+  hubRankingChart.append("g").selectAll("text").data(ranked).join("text")
+    .attr("class", "chart-label").attr("x", 0).attr("y", (hub) => y(hub.code) + y.bandwidth() / 2 + 3).text((hub) => hub.code);
+  hubRankingChart.append("g").selectAll("text").data(ranked).join("text")
+    .attr("class", "chart-value").attr("x", (hub) => x(hub.degree) + 4).attr("y", (hub) => y(hub.code) + y.bandwidth() / 2 + 3)
+    .text((hub) => `${hub.degree} · ${passengerFormat(hub.enplanements)}`);
+  document.querySelector("#ranking-context").textContent = filters.airlines.size ? [...filters.airlines].join(", ") : "All airlines";
+}
+
+function renderAirlineComparison() {
+  const width = airlineComparisonChart.node()?.clientWidth || 314;
+  const height = 184;
+  const margin = { top: 4, right: 8, bottom: 35, left: 28 };
+  const data = airlineStats().sort((a, b) => d3.descending(a.routes, b.routes));
+  const x = d3.scaleBand().domain(data.map((item) => item.airline)).range([margin.left, width - margin.right]).padding(0.22);
+  const subgroup = d3.scaleBand().domain(["routes", "airports"]).range([0, x.bandwidth()]).padding(0.12);
+  const y = d3.scaleLinear().domain([0, d3.max(data, (item) => item.routes)]).nice().range([height - margin.bottom, margin.top]);
+  airlineComparisonChart.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+  airlineComparisonChart.append("g").attr("class", "chart-axis").attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y).ticks(4).tickSizeOuter(0));
+  const groups = airlineComparisonChart.append("g").selectAll("g").data(data).join("g")
+    .attr("transform", (item) => `translate(${x(item.airline)},0)`)
+    .attr("class", "chart-bar")
+    .on("click", (_, item) => setSingleAirline(filters.airlines.has(item.airline) ? undefined : item.airline));
+  groups.append("rect").attr("x", subgroup("routes")).attr("y", (item) => y(item.routes))
+    .attr("width", subgroup.bandwidth()).attr("height", (item) => y(0) - y(item.routes))
+    .attr("fill", (item) => AIRLINE_COLORS[item.airline]).attr("opacity", (item) => filters.airlines.size && !filters.airlines.has(item.airline) ? 0.22 : 0.82);
+  groups.append("rect").attr("x", subgroup("airports")).attr("y", (item) => y(item.airports))
+    .attr("width", subgroup.bandwidth()).attr("height", (item) => y(0) - y(item.airports))
+    .attr("fill", "#d6dee7").attr("opacity", 0.34);
+  groups.append("text").attr("class", "comparison-hub").attr("text-anchor", "middle")
+    .attr("x", x.bandwidth() / 2).attr("y", height - 20).text((item) => item.airline.slice(0, 2).toUpperCase());
+  groups.append("text").attr("class", "comparison-hub").attr("text-anchor", "middle")
+    .attr("x", x.bandwidth() / 2).attr("y", height - 9).text((item) => item.primaryHub);
+}
+
+function renderHubDetail(stats) {
+  const detailStats = routeState.hubCode && !stats.has(routeState.hubCode) ? airportStats(ANALYTIC_ROUTES) : stats;
+  const selected = routeState.hubCode && detailStats.get(routeState.hubCode);
+  if (!selected) {
+    hubDetail.innerHTML = `
+      <p class="eyebrow">Airport detail</p>
+      <h2>Select a hub</h2>
+      <p class="detail-copy">Choose a globe marker, ranking bar, or network node to inspect its role in the filtered network.</p>
+    `;
+    return;
+  }
+  const ranked = [...detailStats.values()].sort((a, b) => d3.descending(a.routes, b.routes));
+  const majorConnections = [...selected.connections]
+    .sort((a, b) => d3.descending(hubsByCode.get(a)?.enplanements || 0, hubsByCode.get(b)?.enplanements || 0))
+    .slice(0, 7);
+  hubDetail.innerHTML = `
+    <p class="eyebrow">Airport detail</p>
+    <h2>${selected.code}</h2>
+    <p class="detail-city">${selected.city}</p>
+    <div class="detail-grid">
+      <span>Routes<b>${selected.routes}</b></span>
+      <span>Hub rank<b>#${ranked.findIndex((airport) => airport.code === selected.code) + 1}</b></span>
+      <span>Airlines<b>${selected.airlines.size}</b></span>
+      <span>Connections<b>${selected.connections.size}</b></span>
+    </div>
+    <p class="detail-copy"><b>Airlines served:</b> ${[...selected.airlines].join(", ")}</p>
+    <p class="detail-copy"><b>Connected major airports:</b> ${majorConnections.join(", ") || "No major hub connections in this view"}</p>
+  `;
+}
+
+function renderNetworkView(routes) {
+  const width = networkChart.node()?.clientWidth || 314;
+  const height = 230;
+  const sampledRoutes = [...routes]
+    .sort((a, b) => Number(b.origin === routeState.hubCode || b.destination === routeState.hubCode) - Number(a.origin === routeState.hubCode || a.destination === routeState.hubCode) || analyticRoutePriority(b) - analyticRoutePriority(a))
+    .slice(0, 72);
+  const links = sampledRoutes.map((route) => ({ ...route, source: route.origin, target: route.destination }));
+  const sampledStats = airportStats(sampledRoutes);
+  const nodes = [...sampledStats.values()].map((airport) => ({ id: airport.code, degree: airport.routes }));
+  const radius = d3.scaleSqrt().domain([1, d3.max(nodes, (node) => node.degree) || 1]).range([2.5, 8]);
+  networkChart.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id((node) => node.id).distance(26).strength(0.5))
+    .force("charge", d3.forceManyBody().strength(-30))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide((node) => radius(node.degree) + 2))
+    .stop();
+  for (let index = 0; index < 100; index += 1) simulation.tick();
+  networkChart.append("g").selectAll("line").data(links).join("line")
+    .attr("class", "network-link")
+    .attr("x1", (link) => link.source.x).attr("y1", (link) => link.source.y)
+    .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y);
+  networkChart.append("g").selectAll("circle").data(nodes).join("circle")
+    .attr("class", (node) => `network-node ${node.id === routeState.hubCode ? "selected" : ""}`)
+    .attr("cx", (node) => node.x).attr("cy", (node) => node.y).attr("r", (node) => radius(node.degree))
+    .attr("fill", filters.airlines.size === 1 ? AIRLINE_COLORS[[...filters.airlines][0]] : "#ffc857")
+    .on("mouseenter", (_, node) => highlightDashboardHub(node.id, true))
+    .on("mouseleave", (_, node) => highlightDashboardHub(node.id, false))
+    .on("click", (_, node) => selectAirportCode(node.id));
+  networkChart.append("g").selectAll("text").data(nodes.filter((node) => node.degree >= 4 || node.id === routeState.hubCode)).join("text")
+    .attr("class", "network-label").attr("x", (node) => node.x + radius(node.degree) + 3).attr("y", (node) => node.y + 2).text((node) => node.id);
 }
 
 function isVisible(coordinates, center = projection.invert(projection.translate())) {
@@ -513,6 +727,7 @@ function refreshRoutes() {
   updateRouteControls();
   renderAirlineStory();
   updateHubStyles();
+  renderDashboard();
   requestRender();
 }
 
@@ -608,16 +823,7 @@ function pauseRotation(duration = 2200) {
 }
 
 function selectHub(hub) {
-  routeState.hubCode = routeState.hubCode === hub.code ? undefined : hub.code;
-  filters.airlines.clear();
-  routeState.visible = Boolean(routeState.hubCode);
-  renderFilters();
-  refreshView();
-  rotateToHub(hub);
-}
-
-function rotateToHub(hub) {
-  focusCoordinates(hub.coordinates, zoomFactor, 850);
+  selectAirportCode(hub.code);
 }
 
 function renderList() {
@@ -701,6 +907,7 @@ function resize() {
     .scale(baseScale * zoomFactor);
   if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
   requestRender();
+  renderDashboard();
 }
 
 svg.call(d3.drag()
