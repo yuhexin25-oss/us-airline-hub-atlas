@@ -1,10 +1,9 @@
 const MAX_VISIBLE_ROUTES = 240;
 const ROUTE_SAMPLE_COUNT = 14;
 const MIN_ZOOM = 0.72;
-const MAX_ZOOM = 9.5;
+const MAX_ZOOM = 4.4;
 const REGIONAL_ZOOM = 1.3;
 const CLOSE_REGIONAL_ZOOM = 2.35;
-const DEEP_REGIONAL_ZOOM = 4.8;
 const passengerFormat = d3.format(".3~s");
 const passengerLongFormat = d3.format(",");
 const radiusScale = d3.scaleSqrt()
@@ -106,7 +105,6 @@ const ANALYTIC_ROUTES = allAirlines.flatMap((airline) =>
 );
 const hoverCard = document.querySelector("#hover-card");
 const routeTooltip = document.querySelector("#route-tooltip");
-const networkTooltip = document.querySelector("#network-tooltip");
 const airlineStory = document.querySelector("#airline-story");
 const airportList = document.querySelector("#airport-list");
 const routeToggle = document.querySelector("#show-routes");
@@ -151,7 +149,6 @@ let routeCollections = [];
 let routeAirportCodes = new Set();
 let hoveredHub;
 let responsiveResizeFrame;
-let pinchDistance;
 
 function responsiveWidth() {
   return mapElement.clientWidth || window.innerWidth;
@@ -405,7 +402,6 @@ function renderNetworkView(routes) {
     : [...stats.values()].sort((a, b) => d3.descending(a.routes, b.routes))[0]?.code;
   const centerCode = routeState.hubCode && stats.has(routeState.hubCode) ? routeState.hubCode : fallbackHub;
   const centerAirport = stats.get(centerCode);
-  networkChart.on("click.dismiss-tooltip", () => hideNetworkTooltip(true));
   if (!centerAirport) {
     networkChart.selectAll("*").remove();
     document.querySelector("#network-context").textContent = "No connections";
@@ -420,10 +416,9 @@ function renderNetworkView(routes) {
       : route.destination === centerCode ? route.origin : undefined;
     if (!connectedCode) return;
     const key = connectedCode;
-    if (!connections.has(key)) connections.set(key, { code: connectedCode, strength: 0, routes: [], airlines: new Set() });
+    if (!connections.has(key)) connections.set(key, { code: connectedCode, strength: 0, routes: [] });
     connections.get(key).strength += 1;
     connections.get(key).routes.push(route);
-    connections.get(key).airlines.add(route.airline);
   });
   const strongestConnections = [...connections.values()]
     .sort((a, b) => d3.descending(a.strength, b.strength) || d3.descending(stats.get(a.code)?.routes || 0, stats.get(b.code)?.routes || 0))
@@ -450,16 +445,14 @@ function renderNetworkView(routes) {
       center: false,
       importance: importance(connection.code),
       role: networkNodeRole(connection.code),
-      strength: connection.strength,
-      connection
+      strength: connection.strength
     }))
   ];
   const links = strongestConnections.map((connection) => ({
     source: centerCode,
     target: connection.code,
     strength: connection.strength,
-    routes: connection.routes,
-    airlines: [...connection.airlines]
+    routes: connection.routes
   }));
   const radius = d3.scaleSqrt().domain(d3.extent(nodes, (node) => node.importance)).range([3.2, 10]);
   const linkWidth = d3.scaleLinear().domain([1, d3.max(links, (link) => link.strength) || 1]).range([0.7, 3]);
@@ -484,52 +477,31 @@ function renderNetworkView(routes) {
     .attr("stroke-width", (link) => linkWidth(link.strength))
     .attr("x1", (link) => link.source.x).attr("y1", (link) => link.source.y)
     .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y)
-    .on("mouseenter", function (event, link) {
+    .on("mouseenter", function (_, link) {
       d3.select(this).classed("hovered", true);
       highlightGlobeConnection(link.routes);
-      showNetworkTooltip(event, centerCode, link.target.id, link.airlines, link.strength);
     })
     .on("mouseleave", function () {
       d3.select(this).classed("hovered", false);
       clearGlobeConnectionHighlight();
-      hideNetworkTooltip();
-    })
-    .on("click", (event, link) => {
-      event.stopPropagation();
-      showNetworkTooltip(event, centerCode, link.target.id, link.airlines, link.strength);
     });
   networkChart.append("g").selectAll("circle").data(nodes).join("circle")
     .attr("class", (node) => `network-node ${node.center ? "selected" : ""}`)
     .attr("cx", (node) => node.x).attr("cy", (node) => node.y).attr("r", (node) => radius(node.importance))
     .attr("fill", (node) => networkRoleColor(node.role))
-    .on("mouseenter", function (event, node) {
+    .on("mouseenter", function (_, node) {
       highlightDashboardHub(node.id, true);
       d3.select(this.parentNode.parentNode).selectAll(".network-label")
         .filter((label) => label.id === node.id)
         .classed("hovered", true);
-      showNetworkNodeTooltip(event, centerCode, node);
     })
     .on("mouseleave", function (_, node) {
       highlightDashboardHub(node.id, false);
       d3.select(this.parentNode.parentNode).selectAll(".network-label")
         .filter((label) => label.id === node.id)
         .classed("hovered", false);
-      hideNetworkTooltip();
     })
-    .on("click", (event, node) => {
-      event.stopPropagation();
-      showNetworkNodeTooltip(event, centerCode, node);
-      selectAirportCode(node.id);
-    });
-  const badgeNodes = nodes
-    .filter((node) => !node.center && topLabelIds.has(node.id))
-    .flatMap((node) => [...node.connection.airlines].slice(0, 3).map((airline, index) => ({ node, airline, index })));
-  networkChart.append("g").attr("class", "network-airline-badges").selectAll("circle").data(badgeNodes).join("circle")
-    .attr("class", "network-airline-dot")
-    .attr("cx", ({ node, index }) => node.labelX + 3 + index * 6)
-    .attr("cy", ({ node }) => node.labelY + 7)
-    .attr("r", 2)
-    .attr("fill", ({ airline }) => AIRLINE_COLORS[airline] || "#ffc857");
+    .on("click", (_, node) => selectAirportCode(node.id));
   networkChart.append("g").selectAll("text").data(nodes).join("text")
     .attr("class", (node) => `network-label ${topLabelIds.has(node.id) ? "always-visible" : ""}`)
     .attr("x", (node) => node.labelX).attr("y", (node) => node.labelY).text((node) => node.id);
@@ -565,43 +537,6 @@ function networkNodeRole(code) {
 
 function networkRoleColor(role) {
   return role === "primary" ? "#ffc857" : role === "focus" ? "#70c79b" : "#73808d";
-}
-
-function showNetworkNodeTooltip(event, centerCode, node) {
-  if (node.center) {
-    const stats = airportStats(selectedAnalyticsRoutes()).get(node.id);
-    showNetworkTooltip(event, node.id, undefined, [...(stats?.airlines || [])], stats?.connections.size || 0, true);
-    return;
-  }
-  showNetworkTooltip(event, centerCode, node.id, [...node.connection.airlines], node.connection.strength);
-}
-
-function showNetworkTooltip(event, origin, destination, airlines, strength, center = false) {
-  const airport = ROUTE_AIRPORTS[destination || origin] || hubsByCode.get(destination || origin);
-  const airlineBadges = airlines
-    .map((airline) => `<span class="network-airline-pill" style="--pill:${AIRLINE_COLORS[airline] || "#ffc857"}">${airline}</span>`)
-    .join("");
-  networkTooltip.innerHTML = `
-    <strong>${center ? origin : `${origin} → ${destination}`}</strong>
-    <span>${airport?.city || destination || origin}</span>
-    <p>Airlines: ${airlines.join(", ") || "No airline detail"}</p>
-    <p>${center ? "Connected airports" : "Connection strength"}: <b>${strength}</b>${center ? "" : " routes"}</p>
-    <div>${airlineBadges}</div>
-  `;
-  positionNetworkTooltip(event);
-  networkTooltip.classList.add("visible");
-}
-
-function positionNetworkTooltip(event) {
-  const left = Math.min(event.clientX + 14, window.innerWidth - 252);
-  const top = Math.min(event.clientY + 14, window.innerHeight - 142);
-  networkTooltip.style.left = `${Math.max(8, left)}px`;
-  networkTooltip.style.top = `${Math.max(8, top)}px`;
-}
-
-function hideNetworkTooltip(force = false) {
-  if (!force && window.matchMedia("(pointer: coarse)").matches) return;
-  networkTooltip.classList.remove("visible");
 }
 
 function highlightGlobeConnection(routes) {
@@ -730,9 +665,7 @@ function drawRegionalAirports() {
   const center = projection.invert(projection.translate());
   context.fillStyle = "#8e99a5";
   context.globalAlpha = zoomFactor >= CLOSE_REGIONAL_ZOOM ? 0.2 : 0.12;
-  const airports = isPhoneLayout() && zoomFactor < DEEP_REGIONAL_ZOOM
-    ? allRouteAirports.filter((_, index) => index % 2 === 0)
-    : allRouteAirports;
+  const airports = isPhoneLayout() ? allRouteAirports.filter((_, index) => index % 2 === 0) : allRouteAirports;
   airports.forEach((airport) => {
     if (!isVisible(airport.coordinates, center)) return;
     const [x, y] = projection(airport.coordinates);
@@ -749,28 +682,24 @@ function drawAirportCodes() {
   const airports = routeAirportCodes.size
     ? [...routeAirportCodes].map((code) => ROUTE_AIRPORTS[code])
     : HUBS.map((hub) => ({ code: hub.code, coordinates: hub.coordinates }));
-  const deepRegional = zoomFactor >= DEEP_REGIONAL_ZOOM;
-  const fontSize = deepRegional ? 8 : 7;
-  context.font = `500 ${fontSize}px "DM Mono", monospace`;
+  context.font = '500 7px "DM Mono", monospace';
   context.textAlign = "left";
   context.textBaseline = "middle";
   context.fillStyle = "#929ca7";
   airports
     .filter((airport) => isVisible(airport.coordinates, center))
-    .slice(0, deepRegional ? (isPhoneLayout() ? 52 : 150) : (isPhoneLayout() ? 28 : 90))
+    .slice(0, isPhoneLayout() ? 28 : 90)
     .forEach((airport) => {
       const [x, y] = projection(airport.coordinates);
-      const label = deepRegional && airport.city ? `${airport.code} · ${airport.city}` : airport.code;
-      const labelWidth = label.length * fontSize * 0.6;
-      const box = { left: x + 5, right: x + labelWidth + 7, top: y - 7, bottom: y + 5 };
+      const box = { left: x + 4, right: x + 25, top: y - 6, bottom: y + 4 };
       const overlaps = occupied.some((other) =>
         box.left < other.right && box.right > other.left &&
         box.top < other.bottom && box.bottom > other.top
       );
       if (!overlaps) {
         occupied.push(box);
-        context.globalAlpha = deepRegional ? 0.66 : 0.52;
-        context.fillText(label, x + 5, y - 2);
+        context.globalAlpha = 0.52;
+        context.fillText(airport.code, x + 4, y - 2);
       }
     });
   context.globalAlpha = 1;
@@ -1177,14 +1106,12 @@ function scheduleResponsiveResize() {
 }
 
 svg.call(d3.drag()
-  .on("start", (event) => {
-    if (event.sourceEvent?.touches?.length > 1) return;
+  .on("start", () => {
     d3.select(mapElement).interrupt("globe-view");
     motion.dragging = true;
     pauseRotation();
   })
   .on("drag", (event) => {
-    if (event.sourceEvent?.touches?.length > 1) return;
     const sensitivity = 75 / projection.scale();
     const rotation = projection.rotate();
     projection.rotate([
@@ -1203,36 +1130,8 @@ svg.on("wheel", (event) => {
   event.preventDefault();
   d3.select(mapElement).interrupt("globe-view");
   pauseRotation();
-  setZoomFactor(zoomFactor * Math.exp(-event.deltaY * 0.0009));
+  setZoomFactor(zoomFactor * Math.exp(-event.deltaY * 0.0012));
 }, { passive: false });
-
-svg.node().addEventListener("touchstart", (event) => {
-  if (event.touches.length !== 2) return;
-  d3.select(mapElement).interrupt("globe-view");
-  pinchDistance = touchDistance(event.touches);
-  motion.dragging = true;
-  pauseRotation(3000);
-}, { passive: false });
-
-svg.node().addEventListener("touchmove", (event) => {
-  if (event.touches.length !== 2 || !pinchDistance) return;
-  event.preventDefault();
-  const nextDistance = touchDistance(event.touches);
-  setZoomFactor(zoomFactor * (nextDistance / pinchDistance));
-  pinchDistance = nextDistance;
-  pauseRotation(3000);
-}, { passive: false });
-
-svg.node().addEventListener("touchend", (event) => {
-  if (event.touches.length >= 2) return;
-  pinchDistance = undefined;
-  motion.dragging = false;
-  pauseRotation(2400);
-}, { passive: false });
-
-function touchDistance(touches) {
-  return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
-}
 
 svg.on("dblclick", (event) => {
   event.preventDefault();
@@ -1246,7 +1145,6 @@ svg.on("click.dismiss-details", () => {
   if (!window.matchMedia("(pointer: coarse)").matches) return;
   hideHoverCard();
   hideRouteTooltip();
-  hideNetworkTooltip(true);
   routeState.hoveredRoute = undefined;
   updateRouteHighlight();
 });
@@ -1271,10 +1169,10 @@ function focusCoordinates(coordinates, targetZoom, duration = 760) {
     .ease(d3.easeCubicInOut)
     .tween("view", () => {
       const interpolateRotation = d3.interpolate(startRotation, targetRotation);
-      const interpolateZoom = d3.interpolateNumber(Math.log(startZoom), Math.log(endZoom));
+      const interpolateZoom = d3.interpolateNumber(startZoom, endZoom);
       return (time) => {
         projection.rotate(interpolateRotation(time));
-        setZoomFactor(Math.exp(interpolateZoom(time)));
+        setZoomFactor(interpolateZoom(time));
       };
     });
 }
@@ -1315,7 +1213,7 @@ d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
     requestRender();
   })
   .catch(() => {
-    document.querySelector(".map-tip").textContent = "Scroll or pinch to zoom · Drag to rotate · Base layer unavailable";
+    document.querySelector(".map-tip").textContent = "Scroll to zoom · Drag to rotate · Base layer unavailable";
   });
 
 routeToggle.addEventListener("change", (event) => {
@@ -1338,8 +1236,8 @@ document.querySelector("#reset-filters").addEventListener("click", () => {
   refreshView();
   resetGlobe();
 });
-document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor * 1.34, 420));
-document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor / 1.34, 420));
+document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor * 1.45, 420));
+document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor / 1.45, 420));
 document.querySelector("#reset-globe").addEventListener("click", resetGlobe);
 document.querySelector(".mobile-panel-toggle").addEventListener("click", (event) => {
   const panel = document.querySelector(".control-panel");
