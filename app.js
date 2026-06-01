@@ -548,11 +548,9 @@ function highlightNetworkLink(element, linkLayer, nodeLayer, link, active) {
 }
 
 function showNetworkTooltip(event, link) {
-  const airlineNames = link.airlines.map((airline) => AIRLINE_STORIES[airline]?.name || airline);
   networkTooltip.innerHTML = `
-    <strong>${link.source.id} → ${link.target.id}</strong>
-    <p>Airlines: <b>${airlineNames.join(", ")}</b></p>
-    <p>Connection strength: <b>${link.strength}</b></p>
+    <strong>${link.source.id}–${link.target.id}</strong>
+    <p>Strength: <b>${link.strength}</b></p>
   `;
   positionNetworkTooltip(event);
   networkTooltip.classList.add("visible");
