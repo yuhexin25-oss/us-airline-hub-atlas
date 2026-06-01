@@ -435,7 +435,6 @@ function renderNetworkView(routes) {
   const strongest = strongestConnections[0];
   document.querySelector("#network-context").textContent = `${centerCode} centered`;
   document.querySelector("#network-metrics").innerHTML = `
-    <span>Degree<b>${connections.size}</b></span>
     <span>Visible links<b>${strongestConnections.length}</b></span>
     <span>Strongest<b>${strongest ? `${strongest.code} · ${strongest.strength}` : "—"}</b></span>
     <span>Airline<b>${selectedAirline || "All"}</b></span>
@@ -489,6 +488,7 @@ function renderNetworkView(routes) {
       highlightGlobeConnection(link.routes);
       showNetworkTooltip(event, centerCode, link.target.id, link.airlines, link.strength);
     })
+    .on("mousemove", (event) => positionNetworkTooltip(event))
     .on("mouseleave", function () {
       d3.select(this).classed("hovered", false);
       clearGlobeConnectionHighlight();
@@ -584,7 +584,7 @@ function showNetworkTooltip(event, origin, destination, airlines, strength, cent
   networkTooltip.innerHTML = `
     <strong>${center ? origin : `${origin} → ${destination}`}</strong>
     <span>${airport?.city || destination || origin}</span>
-    <p>Airlines: ${airlines.join(", ") || "No airline detail"}</p>
+    <p>Operating airlines: ${airlines.join(", ") || "No airline detail"}</p>
     <p>${center ? "Connected airports" : "Connection strength"}: <b>${strength}</b>${center ? "" : " routes"}</p>
     <div>${airlineBadges}</div>
   `;
