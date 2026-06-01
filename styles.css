@@ -328,6 +328,35 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .source-links a:hover { border-color: rgba(255,200,87,.7); }
 .source-links span { float: right; color: var(--accent); }
 .data-modal small { color: var(--dim); font: 10px/1.5 "DM Mono", monospace; }
+.welcome-backdrop {
+  position: absolute; z-index: 11; inset: 0; display: grid; padding: 18px; place-items: center;
+  background: rgba(5,9,15,.74); backdrop-filter: blur(8px);
+}
+.welcome-backdrop[hidden] { display: none; }
+.welcome-modal {
+  width: min(680px, 100%); padding: 28px; border: 1px solid rgba(255,255,255,.14); border-radius: 15px;
+  background: #111b2a; box-shadow: 0 24px 62px rgba(0,0,0,.48); animation: welcome-in .28s ease-out;
+}
+.welcome-modal h2 { font-size: 31px; }
+.welcome-copy { max-width: 580px; margin-top: 11px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.welcome-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.welcome-grid section, .welcome-sources { padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.025); }
+.welcome-modal h3 { margin-bottom: 8px; color: var(--accent); font-size: 10px; }
+.welcome-modal ul { display: grid; gap: 5px; margin: 0; padding-left: 16px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.welcome-sources { margin-top: 10px; }
+.welcome-sources p { color: var(--muted); font: 10px/1.55 "DM Mono", monospace; }
+.welcome-actions { display: flex; gap: 14px; margin-top: 18px; align-items: center; justify-content: space-between; }
+.welcome-actions label { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: 11px; cursor: pointer; }
+.welcome-actions input { accent-color: var(--accent); }
+.welcome-actions button {
+  min-height: 38px; padding: 0 16px; color: #111925; border: 1px solid var(--accent); border-radius: 7px;
+  background: var(--accent); font-size: 11px; font-weight: 800;
+}
+.welcome-actions button:hover { filter: brightness(1.06); }
+@keyframes welcome-in {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
 @media (max-width: 700px) {
@@ -344,6 +373,9 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   .airline-filters { max-height: 32px; overflow: hidden; }
   .legend { right: 10px; bottom: calc(41vh + 10px); }
   .map-tip, .zoom-controls { display: none; }
+  .welcome-modal { max-height: calc(100vh - 24px); padding: 20px; overflow-y: auto; }
+  .welcome-modal h2 { font-size: 25px; }
+  .welcome-grid { grid-template-columns: 1fr; }
 }
 
 @media (min-width: 701px) and (max-width: 1180px) {

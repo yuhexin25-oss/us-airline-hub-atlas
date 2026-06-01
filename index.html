@@ -221,6 +221,48 @@
           <small>Prepared as an exploratory visualization. Data snapshot: CY 2024 FAA passenger boardings.</small>
         </section>
       </div>
+
+      <div class="welcome-backdrop" id="welcome-backdrop" hidden>
+        <section class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+          <p class="eyebrow">Welcome to the atlas</p>
+          <h2 id="welcome-title">U.S. Airline Hub Atlas</h2>
+          <p class="welcome-copy">
+            Explore the structure of the U.S. airline network through an interactive
+            D3 globe and analytical dashboard.
+          </p>
+          <div class="welcome-grid">
+            <section>
+              <h3>Features</h3>
+              <ul>
+                <li>Visualize airline hubs and focus cities</li>
+                <li>Compare major airline networks</li>
+                <li>Inspect hub connectivity and route structure</li>
+                <li>Explore airport hierarchy and network resilience</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Interactions</h3>
+              <ul>
+                <li>Drag to rotate the globe</li>
+                <li>Scroll to zoom</li>
+                <li>Hover airports and routes for details</li>
+                <li>Select airlines to filter the network</li>
+              </ul>
+            </section>
+          </div>
+          <section class="welcome-sources">
+            <h3>Data sources</h3>
+            <p>FAA Enplanement Statistics · OpenFlights Airport Database · OpenFlights Route Database</p>
+          </section>
+          <div class="welcome-actions">
+            <label>
+              <input id="welcome-dismiss" type="checkbox" />
+              <span>Don't show again</span>
+            </label>
+            <button id="welcome-start" type="button">Get Started</button>
+          </div>
+        </section>
+      </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>

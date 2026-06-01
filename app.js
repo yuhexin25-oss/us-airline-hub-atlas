@@ -1223,4 +1223,15 @@ modalBackdrop.addEventListener("click", (event) => {
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") modalBackdrop.hidden = true;
 });
+
+const welcomeBackdrop = document.querySelector("#welcome-backdrop");
+const welcomeDismiss = document.querySelector("#welcome-dismiss");
+const welcomeStorageKey = "airlineHubAtlas.hideWelcome";
+if (localStorage.getItem(welcomeStorageKey) !== "true") {
+  welcomeBackdrop.hidden = false;
+}
+document.querySelector("#welcome-start").addEventListener("click", () => {
+  if (welcomeDismiss.checked) localStorage.setItem(welcomeStorageKey, "true");
+  welcomeBackdrop.hidden = true;
+});
 window.addEventListener("resize", resize);
