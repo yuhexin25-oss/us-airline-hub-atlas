@@ -18,26 +18,7 @@
   </head>
   <body>
     <main>
-      <div id="map" aria-label="Interactive globe of U.S. airline hubs">
-        <div class="legend">
-          <p>Annual enplanements</p>
-          <div class="legend-scale">
-            <span class="legend-dot small"></span><span>&lt; 10m</span>
-            <span class="legend-dot medium"></span><span>20m</span>
-            <span class="legend-dot large"></span><span>50m+</span>
-          </div>
-          <p class="legend-note"><i></i> Focus city</p>
-          <p class="legend-route"><b></b> Selected airline route</p>
-        </div>
-
-        <div class="zoom-controls" aria-label="Globe zoom controls">
-          <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
-          <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
-          <button class="reset-globe" id="reset-globe" type="button">Reset Globe</button>
-        </div>
-
-        <div class="map-tip">Scroll to zoom · Drag to rotate · Double-click a hub to focus</div>
-      </div>
+      <div id="map" aria-label="Interactive globe of U.S. airline hubs"></div>
 
       <header class="topbar">
         <div class="brand">
@@ -62,7 +43,6 @@
       </section>
 
       <aside class="control-panel">
-        <button class="mobile-panel-toggle" type="button" aria-expanded="true">Filters and network story</button>
         <div class="panel-intro">
           <p class="eyebrow">Explore the network</p>
           <h2>Where America connects.</h2>
@@ -136,7 +116,7 @@
       </aside>
 
       <aside class="analysis-panel" aria-label="Airline network analysis">
-        <section class="analysis-card" data-mobile-title="Top connected hubs">
+        <section class="analysis-card">
           <div class="analysis-heading">
             <div>
               <p class="eyebrow">Hub hierarchy</p>
@@ -147,7 +127,7 @@
           <svg class="chart" id="hub-ranking-chart" role="img" aria-label="Horizontal bar chart ranking airport hubs"></svg>
         </section>
 
-        <section class="analysis-card" data-mobile-title="Airline comparison">
+        <section class="analysis-card">
           <div class="analysis-heading">
             <div>
               <p class="eyebrow">Carrier scale</p>
@@ -158,9 +138,9 @@
           <svg class="chart" id="airline-comparison-chart" role="img" aria-label="Bar chart comparing airline networks"></svg>
         </section>
 
-        <section class="analysis-card hub-detail" id="hub-detail" data-mobile-title="Airport detail" aria-live="polite"></section>
+        <section class="analysis-card hub-detail" id="hub-detail" aria-live="polite"></section>
 
-        <section class="analysis-card" data-mobile-title="Hub connectivity">
+        <section class="analysis-card">
           <div class="analysis-heading">
             <div>
               <p class="eyebrow">Network structure</p>
@@ -178,8 +158,27 @@
         </section>
       </aside>
 
+      <div class="legend">
+        <p>Annual enplanements</p>
+        <div class="legend-scale">
+          <span class="legend-dot small"></span><span>&lt; 10m</span>
+          <span class="legend-dot medium"></span><span>20m</span>
+          <span class="legend-dot large"></span><span>50m+</span>
+        </div>
+        <p class="legend-note"><i></i> Focus city</p>
+        <p class="legend-route"><b></b> Selected airline route</p>
+      </div>
+
       <div class="hover-card" id="hover-card" aria-live="polite"></div>
       <div class="route-tooltip" id="route-tooltip" aria-live="polite"></div>
+
+      <div class="zoom-controls" aria-label="Globe zoom controls">
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <button class="reset-globe" id="reset-globe" type="button">Reset Globe</button>
+      </div>
+
+      <div class="map-tip">Scroll to zoom · Drag to rotate · Double-click a hub to focus</div>
 
       <div class="modal-backdrop" id="modal-backdrop" hidden>
         <section class="data-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">

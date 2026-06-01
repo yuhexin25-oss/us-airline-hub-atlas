@@ -113,7 +113,6 @@ const airlineComparisonChart = d3.select("#airline-comparison-chart");
 const networkChart = d3.select("#network-chart");
 const hubDetail = document.querySelector("#hub-detail");
 const mapElement = document.querySelector("#map");
-const controlPanel = document.querySelector(".control-panel");
 const canvas = d3.select(mapElement).append("canvas").attr("class", "globe-canvas").node();
 const context = canvas.getContext("2d");
 const svg = d3.select(mapElement).append("svg")
@@ -149,60 +148,6 @@ let routeFeatures = [];
 let routeCollections = [];
 let routeAirportCodes = new Set();
 let hoveredHub;
-let responsiveResizeFrame;
-
-function enableSidebarDiagnostics() {
-  if (!new URLSearchParams(window.location.search).has("debugSidebar")) return;
-  document.documentElement.classList.add("sidebar-debug");
-  const elements = {
-    sidebar: controlPanel,
-    map: mapElement,
-    canvas,
-    globeOverlay: svg.node()
-  };
-  const snapshot = () => Object.fromEntries(Object.entries(elements).map(([name, element]) => {
-    const styles = getComputedStyle(element);
-    return [name, {
-      bounds: element.getBoundingClientRect().toJSON(),
-      zIndex: styles.zIndex,
-      overflow: styles.overflow,
-      overflowY: styles.overflowY,
-      pointerEvents: styles.pointerEvents,
-      position: styles.position,
-      touchAction: styles.touchAction
-    }];
-  }));
-  console.log("sidebar diagnostics:", snapshot());
-  document.addEventListener("click", (event) => {
-    console.log("clicked:", event.target, {
-      pointTarget: document.elementFromPoint(event.clientX, event.clientY),
-      snapshot: snapshot()
-    });
-  }, true);
-}
-
-enableSidebarDiagnostics();
-
-function responsiveWidth() {
-  return mapElement.clientWidth || window.innerWidth;
-}
-
-function isPhoneLayout() {
-  return responsiveWidth() < 768;
-}
-
-function visibleRouteLimit() {
-  const currentWidth = responsiveWidth();
-  if (currentWidth <= 390) return 90;
-  if (currentWidth <= 480) return 120;
-  if (currentWidth < 768) return 150;
-  if (currentWidth <= 1024) return 200;
-  return MAX_VISIBLE_ROUTES;
-}
-
-function networkConnectionLimit() {
-  return responsiveWidth() <= 390 ? 14 : responsiveWidth() < 768 ? 18 : 24;
-}
 
 function routeKey(airline, origin, destination) {
   return `${airline}:${origin}:${destination}`;
@@ -242,7 +187,7 @@ function selectedRouteFeatures() {
   );
   return routes
     .sort((a, b) => routePriority(b) - routePriority(a) || d3.ascending(a.properties.key, b.properties.key))
-    .slice(0, visibleRouteLimit());
+    .slice(0, MAX_VISIBLE_ROUTES);
 }
 
 function routePriority(feature) {
@@ -324,7 +269,6 @@ function renderDashboard() {
   renderAirlineComparison();
   renderHubDetail(stats);
   renderNetworkView(routes);
-  ensureMobileCollapseButtons();
 }
 
 function renderKpis(routes, stats) {
@@ -340,13 +284,13 @@ function renderKpis(routes, stats) {
 
 function renderHubRanking(stats) {
   const width = hubRankingChart.node()?.clientWidth || 314;
-  const height = hubRankingChart.node()?.clientHeight || 184;
+  const height = 184;
   const margin = { top: 4, right: 30, bottom: 20, left: 40 };
   const ranked = HUBS
     .map((hub) => ({ ...hub, degree: stats.get(hub.code)?.routes || 0 }))
     .filter((hub) => hub.degree && airportMatches(hub))
     .sort((a, b) => d3.descending(a.degree, b.degree))
-    .slice(0, responsiveWidth() <= 390 ? 6 : 8);
+    .slice(0, 8);
   const x = d3.scaleLinear().domain([0, d3.max(ranked, (hub) => hub.degree) || 1]).nice().range([margin.left, width - margin.right]);
   const y = d3.scaleBand().domain(ranked.map((hub) => hub.code)).range([margin.top, height - margin.bottom]).padding(0.26);
   hubRankingChart.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
@@ -370,7 +314,7 @@ function renderHubRanking(stats) {
 
 function renderAirlineComparison() {
   const width = airlineComparisonChart.node()?.clientWidth || 314;
-  const height = airlineComparisonChart.node()?.clientHeight || 184;
+  const height = 184;
   const margin = { top: 4, right: 8, bottom: 35, left: 28 };
   const data = airlineStats().sort((a, b) => d3.descending(a.routes, b.routes));
   const x = d3.scaleBand().domain(data.map((item) => item.airline)).range([margin.left, width - margin.right]).padding(0.22);
@@ -427,7 +371,7 @@ function renderHubDetail(stats) {
 
 function renderNetworkView(routes) {
   const width = networkChart.node()?.clientWidth || 314;
-  const height = networkChart.node()?.clientHeight || 258;
+  const height = 258;
   const selectedAirline = filters.airlines.size === 1 ? [...filters.airlines][0] : undefined;
   const stats = airportStats(routes);
   const fallbackHub = selectedAirline
@@ -455,7 +399,7 @@ function renderNetworkView(routes) {
   });
   const strongestConnections = [...connections.values()]
     .sort((a, b) => d3.descending(a.strength, b.strength) || d3.descending(stats.get(a.code)?.routes || 0, stats.get(b.code)?.routes || 0))
-    .slice(0, networkConnectionLimit());
+    .slice(0, 24);
   const totalStrength = d3.sum(strongestConnections, (connection) => connection.strength);
   const concentration = totalStrength
     ? d3.sum(strongestConnections, (connection) => (connection.strength / totalStrength) ** 2)
@@ -664,11 +608,9 @@ function drawReferenceLabels() {
     .filter((label) =>
       label.edgeOpacity > 0 &&
       zoomFactor >= (label.minZoom || MIN_ZOOM) &&
-      zoomFactor <= (label.type === "country" ? Math.min(label.maxZoom || MAX_ZOOM, 1.55) : (label.maxZoom || MAX_ZOOM)) &&
-      (!isPhoneLayout() || label.priority >= (responsiveWidth() <= 390 ? 9 : 8))
+      zoomFactor <= (label.type === "country" ? Math.min(label.maxZoom || MAX_ZOOM, 1.55) : (label.maxZoom || MAX_ZOOM))
     )
-    .sort((a, b) => d3.descending(a.priority, b.priority) || d3.ascending(a.type, b.type))
-    .slice(0, isPhoneLayout() ? (responsiveWidth() <= 390 ? 3 : 6) : labels.length);
+    .sort((a, b) => d3.descending(a.priority, b.priority) || d3.ascending(a.type, b.type));
 
   visibleLabels.forEach((label) => {
     const box = {
@@ -698,8 +640,7 @@ function drawRegionalAirports() {
   const center = projection.invert(projection.translate());
   context.fillStyle = "#8e99a5";
   context.globalAlpha = zoomFactor >= CLOSE_REGIONAL_ZOOM ? 0.2 : 0.12;
-  const airports = isPhoneLayout() ? allRouteAirports.filter((_, index) => index % 2 === 0) : allRouteAirports;
-  airports.forEach((airport) => {
+  allRouteAirports.forEach((airport) => {
     if (!isVisible(airport.coordinates, center)) return;
     const [x, y] = projection(airport.coordinates);
     context.beginPath();
@@ -721,7 +662,7 @@ function drawAirportCodes() {
   context.fillStyle = "#929ca7";
   airports
     .filter((airport) => isVisible(airport.coordinates, center))
-    .slice(0, isPhoneLayout() ? 28 : 90)
+    .slice(0, 90)
     .forEach((airport) => {
       const [x, y] = projection(airport.coordinates);
       const box = { left: x + 4, right: x + 25, top: y - 6, bottom: y + 4 };
@@ -799,14 +740,6 @@ function bindRouteHover() {
       updateRouteHighlight();
     })
     .on("mousemove", (event) => positionRouteTooltip(event))
-    .on("click", (event, feature) => {
-      if (!window.matchMedia("(pointer: coarse)").matches) return;
-      event.stopPropagation();
-      routeState.hoveredRoute = feature;
-      pauseRotation(3200);
-      showRouteTooltip(event, feature);
-      updateRouteHighlight();
-    })
     .on("mouseleave", () => {
       routeState.hoveredRoute = undefined;
       motion.hovering = false;
@@ -844,12 +777,11 @@ function updateRouteHighlight() {
 
 function updateRouteControls() {
   const hasSelection = hasRouteSelection();
-  const routeLimit = visibleRouteLimit();
   routeToggle.disabled = !hasSelection;
   routeToggle.checked = routeState.visible && hasSelection;
   document.querySelector("#route-note").textContent = hasSelection
-    ? `Toggle the selected network on or off. The foreground is capped at ${routeLimit} routes for clarity.`
-    : `Select an airline or hub to enable a focused network of up to ${routeLimit} routes.`;
+    ? "Toggle the selected network on or off. The foreground is capped at 240 routes for clarity."
+    : "Select an airline or hub to enable a focused network of up to 240 routes.";
 }
 
 function renderAirlineStory() {
@@ -947,7 +879,6 @@ function renderMarkers() {
         .on("click", (event, hub) => {
           if (event.detail > 1) return;
           event.stopPropagation();
-          if (window.matchMedia("(pointer: coarse)").matches) showHoverCard(hub, event.currentTarget);
           selectHub(hub);
         })
         .on("dblclick", (event, hub) => {
@@ -1087,35 +1018,11 @@ function renderFilters() {
   });
 }
 
-function ensureMobileCollapseButtons() {
-  document.querySelectorAll(".analysis-card").forEach((card) => {
-    let button = card.querySelector(":scope > .mobile-card-toggle");
-    if (!button) {
-      button = document.createElement("button");
-      button.className = "mobile-card-toggle";
-      button.type = "button";
-      button.textContent = card.dataset.mobileTitle || "Analysis";
-      card.prepend(button);
-      button.addEventListener("click", () => {
-        card.classList.toggle("mobile-collapsed");
-        button.setAttribute("aria-expanded", String(!card.classList.contains("mobile-collapsed")));
-        scheduleResponsiveResize();
-      });
-    }
-    if (!card.dataset.collapseInitialized) {
-      card.dataset.collapseInitialized = "true";
-      card.classList.toggle("mobile-collapsed", isPhoneLayout());
-    }
-    button.setAttribute("aria-expanded", String(!card.classList.contains("mobile-collapsed")));
-  });
-}
-
 function resize() {
   const devicePixelRatio = window.devicePixelRatio || 1;
   width = mapElement.clientWidth;
   height = mapElement.clientHeight;
-  if (!width || !height) return;
-  baseScale = Math.min(width * (isPhoneLayout() ? 0.43 : 0.34), height * 0.44);
+  baseScale = Math.min(width * (window.innerWidth > 700 ? 0.34 : 0.43), height * 0.44);
   canvas.width = width * devicePixelRatio;
   canvas.height = height * devicePixelRatio;
   canvas.style.width = `${width}px`;
@@ -1123,19 +1030,11 @@ function resize() {
   context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   svg.attr("viewBox", `0 0 ${width} ${height}`);
   projection
-    .translate([width * (isPhoneLayout() ? 0.5 : 0.61), height * (isPhoneLayout() ? 0.48 : 0.55)])
+    .translate([width * (window.innerWidth > 700 ? 0.61 : 0.5), height * (window.innerWidth > 700 ? 0.55 : 0.38)])
     .scale(baseScale * zoomFactor);
   if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
   requestRender();
   renderDashboard();
-}
-
-function scheduleResponsiveResize() {
-  cancelAnimationFrame(responsiveResizeFrame);
-  responsiveResizeFrame = requestAnimationFrame(() => {
-    resize();
-    refreshRoutes();
-  });
 }
 
 svg.call(d3.drag()
@@ -1172,14 +1071,6 @@ svg.on("dblclick", (event) => {
   const [centerX, centerY] = projection.translate();
   if (Math.hypot(point[0] - centerX, point[1] - centerY) > projection.scale()) return;
   focusCoordinates(projection.invert(point), Math.max(REGIONAL_ZOOM, zoomFactor * 1.55));
-});
-
-svg.on("click.dismiss-details", () => {
-  if (!window.matchMedia("(pointer: coarse)").matches) return;
-  hideHoverCard();
-  hideRouteTooltip();
-  routeState.hoveredRoute = undefined;
-  updateRouteHighlight();
 });
 
 function setZoomFactor(nextZoom) {
@@ -1219,7 +1110,7 @@ function animate(now) {
   motion.lastFrame = now;
   const shouldRotate = !motion.reducedMotion && !motion.dragging && !motion.hovering && !routeState.hubCode;
   if (shouldRotate) {
-    const speed = (now < motion.resumeAt ? 0.00035 : 0.001) * (isPhoneLayout() ? 0.62 : 1);
+    const speed = now < motion.resumeAt ? 0.00035 : 0.001;
     const rotation = projection.rotate();
     projection.rotate([rotation[0] + elapsed * speed, rotation[1], rotation[2]]);
     requestRender();
@@ -1272,12 +1163,6 @@ document.querySelector("#reset-filters").addEventListener("click", () => {
 document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor * 1.45, 420));
 document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor / 1.45, 420));
 document.querySelector("#reset-globe").addEventListener("click", resetGlobe);
-document.querySelector(".mobile-panel-toggle").addEventListener("click", (event) => {
-  const panel = document.querySelector(".control-panel");
-  panel.classList.toggle("mobile-collapsed");
-  event.currentTarget.setAttribute("aria-expanded", String(!panel.classList.contains("mobile-collapsed")));
-  scheduleResponsiveResize();
-});
 
 const modalBackdrop = document.querySelector("#modal-backdrop");
 document.querySelector("#about-button").addEventListener("click", () => { modalBackdrop.hidden = false; });
@@ -1288,9 +1173,4 @@ modalBackdrop.addEventListener("click", (event) => {
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") modalBackdrop.hidden = true;
 });
-if ("ResizeObserver" in window) {
-  const dashboardResizeObserver = new ResizeObserver(scheduleResponsiveResize);
-  [mapElement, hubRankingChart.node(), airlineComparisonChart.node(), networkChart.node()]
-    .forEach((element) => dashboardResizeObserver.observe(element));
-}
-window.addEventListener("resize", scheduleResponsiveResize);
+window.addEventListener("resize", resize);
