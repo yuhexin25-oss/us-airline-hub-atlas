@@ -5,6 +5,39 @@ const passengerLongFormat = d3.format(",");
 const radiusScale = d3.scaleSqrt()
   .domain(d3.extent(HUBS, (hub) => hub.enplanements))
   .range([4.5, 12]);
+const REFERENCE_LABELS = [
+  { name: "United States", coordinates: [-100, 39], type: "country", priority: 10 },
+  { name: "Canada", coordinates: [-108, 57], type: "country", priority: 9 },
+  { name: "Mexico", coordinates: [-102, 23], type: "country", priority: 8 },
+  { name: "Greenland", coordinates: [-42, 72], type: "country", priority: 5 },
+  { name: "Iceland", coordinates: [-19, 65], type: "country", priority: 4 },
+  { name: "United Kingdom", coordinates: [-3, 55], type: "country", priority: 6 },
+  { name: "France", coordinates: [2, 46], type: "country", priority: 5 },
+  { name: "Germany", coordinates: [10, 51], type: "country", priority: 5 },
+  { name: "Spain", coordinates: [-4, 40], type: "country", priority: 4 },
+  { name: "Brazil", coordinates: [-52, -10], type: "country", priority: 7 },
+  { name: "Argentina", coordinates: [-64, -35], type: "country", priority: 5 },
+  { name: "Russia", coordinates: [90, 60], type: "country", priority: 7 },
+  { name: "China", coordinates: [104, 35], type: "country", priority: 8 },
+  { name: "Japan", coordinates: [138, 37], type: "country", priority: 6 },
+  { name: "India", coordinates: [79, 22], type: "country", priority: 7 },
+  { name: "Australia", coordinates: [134, -25], type: "country", priority: 7 },
+  { name: "New York", coordinates: [-74.01, 40.71], type: "city", priority: 6 },
+  { name: "Chicago", coordinates: [-87.63, 41.88], type: "city", priority: 5 },
+  { name: "Atlanta", coordinates: [-84.39, 33.75], type: "city", priority: 5 },
+  { name: "Dallas", coordinates: [-96.8, 32.78], type: "city", priority: 4 },
+  { name: "Los Angeles", coordinates: [-118.24, 34.05], type: "city", priority: 6 },
+  { name: "Seattle", coordinates: [-122.33, 47.61], type: "city", priority: 4 },
+  { name: "Denver", coordinates: [-104.99, 39.74], type: "city", priority: 4 },
+  { name: "Miami", coordinates: [-80.19, 25.76], type: "city", priority: 4 },
+  { name: "London", coordinates: [-0.13, 51.51], type: "city", priority: 6 },
+  { name: "Paris", coordinates: [2.35, 48.86], type: "city", priority: 5 },
+  { name: "Frankfurt", coordinates: [8.68, 50.11], type: "city", priority: 4 },
+  { name: "Tokyo", coordinates: [139.69, 35.68], type: "city", priority: 6 },
+  { name: "Beijing", coordinates: [116.41, 39.9], type: "city", priority: 5 },
+  { name: "Shanghai", coordinates: [121.47, 31.23], type: "city", priority: 5 },
+  { name: "Sydney", coordinates: [151.21, -33.87], type: "city", priority: 5 }
+];
 const AIRLINE_STORIES = {
   Alaska: {
     name: "Alaska Airlines", primaryHub: "SEA", focusCities: ["PDX", "ANC", "SFO", "LAX"],
@@ -161,6 +194,7 @@ function drawGlobe() {
   drawPath(sphere, "#111923", "#55606d", 0.7, 1);
   drawPath(graticule, null, "#718090", 0.35, 0.08);
   if (land) drawPath(land, "#202b36", "#6d7986", 0.4, 0.54);
+  drawReferenceLabels();
 
   if (routeCollections.length) {
     context.save();
@@ -190,6 +224,45 @@ function updateRouteOverlays() {
     .attr("d", svgPath);
   routeHighlightLayer.selectAll(".route-highlight")
     .attr("d", svgPath);
+}
+
+function drawReferenceLabels() {
+  const center = projection.invert(projection.translate());
+  const occupied = [];
+  const visibleLabels = REFERENCE_LABELS
+    .map((label) => {
+      const distance = d3.geoDistance(label.coordinates, center);
+      const edgeOpacity = Math.max(0, Math.min(1, (Math.cos(distance) - 0.12) / 0.6));
+      const [x, y] = projection(label.coordinates);
+      const fontSize = label.type === "country" ? 8 : 7;
+      const width = label.name.length * fontSize * 0.62;
+      return { ...label, x, y, edgeOpacity, width, height: fontSize + 3 };
+    })
+    .filter((label) => label.edgeOpacity > 0)
+    .sort((a, b) => d3.descending(a.priority, b.priority) || d3.ascending(a.type, b.type));
+
+  visibleLabels.forEach((label) => {
+    const box = {
+      left: label.x - label.width / 2 - 3,
+      right: label.x + label.width / 2 + 3,
+      top: label.y - label.height / 2 - 2,
+      bottom: label.y + label.height / 2 + 2
+    };
+    const overlaps = occupied.some((other) =>
+      box.left < other.right && box.right > other.left &&
+      box.top < other.bottom && box.bottom > other.top
+    );
+    if (!overlaps) {
+      occupied.push(box);
+      context.globalAlpha = label.edgeOpacity * (label.type === "country" ? 0.62 : 0.52);
+      context.fillStyle = label.type === "country" ? "#737b85" : "#656d77";
+      context.font = `400 ${label.type === "country" ? 8 : 7}px "DM Mono", monospace`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(label.type === "country" ? label.name.toUpperCase() : label.name, label.x, label.y);
+    }
+  });
+  context.globalAlpha = 1;
 }
 
 function updateHubPositions() {
