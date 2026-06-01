@@ -6,7 +6,7 @@
   --panel-soft: rgba(17, 26, 41, 0.88);
   --line: rgba(255, 255, 255, 0.1);
   --accent: #ffc857;
-  --map-dark: #111925;
+  --map-dark: #0f161f;
   font-family: "Manrope", sans-serif;
   color: var(--ink);
   background: #101722;
@@ -18,13 +18,9 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 
 #map { background: var(--map-dark); }
-.maplibregl-canvas { filter: saturate(0.72) contrast(1.05); }
-.maplibregl-ctrl-bottom-right { right: 22px; bottom: 14px; }
-.maplibregl-ctrl-attrib { background: rgba(8, 13, 22, 0.76) !important; color: #98a2af; }
-.maplibregl-ctrl-attrib a { color: #c8d1dc; }
-.maplibregl-ctrl-group { border: 0; background: rgba(8, 13, 22, 0.88); }
-.maplibregl-ctrl-group button + button { border-top-color: var(--line); }
-.maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1); opacity: 0.8; }
+.globe-canvas, .globe-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.globe-overlay { touch-action: none; cursor: grab; }
+.globe-overlay:active { cursor: grabbing; }
 
 .topbar {
   position: absolute;
@@ -119,6 +115,22 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .filter-chip:hover, .filter-chip.active { color: #111925; border-color: var(--accent); background: var(--accent); }
 .airline-chip.active { color: #101722; border-color: var(--chip); background: var(--chip); }
 
+.route-controls { padding: 10px 16px 12px; border-top: 1px solid var(--line); }
+.route-toggle { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 11px; cursor: pointer; }
+.route-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.route-toggle span {
+  position: relative; width: 28px; height: 15px; border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px; background: rgba(255,255,255,.07); transition: background .18s, border-color .18s;
+}
+.route-toggle span::after {
+  position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--muted); content: ""; transition: transform .18s, background .18s;
+}
+.route-toggle input:checked + span { border-color: rgba(255,200,87,.75); background: rgba(255,200,87,.2); }
+.route-toggle input:checked + span::after { background: var(--accent); transform: translateX(13px); }
+.route-toggle:has(input:disabled) { color: var(--dim); cursor: not-allowed; opacity: .7; }
+.route-controls p { margin-top: 6px; color: var(--dim); font-size: 10px; line-height: 1.45; }
+
 .route-summary { padding: 9px 16px 11px; border-top: 1px solid var(--line); }
 .route-summary[hidden] { display: none; }
 .route-key { display: flex; flex-wrap: wrap; gap: 6px 10px; }
@@ -133,7 +145,7 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   display: grid; grid-template-columns: 42px 1fr auto; gap: 8px; width: 100%; padding: 10px 3px;
   color: var(--ink); text-align: left; border: 0; border-top: 1px solid rgba(255,255,255,0.065); background: transparent;
 }
-.airport-row:hover { background: rgba(255,255,255,0.04); }
+.airport-row:hover, .airport-row.active { background: rgba(255,200,87,.07); }
 .airport-code { color: var(--accent); font: 500 14px "DM Mono", monospace; }
 .airport-city { display: block; font-size: 11px; font-weight: 700; }
 .airport-role { display: block; margin-top: 3px; color: var(--dim); font-size: 9px; text-transform: uppercase; }
@@ -141,24 +153,26 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .empty-state { padding: 20px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 .hub-marker {
-  position: relative; width: 0; height: 0; padding: 0; border: 0; background: transparent;
+  cursor: pointer; outline: none; transition: opacity .18s;
 }
+.hub-halo { fill: none; stroke: transparent; stroke-width: 5; transition: stroke .18s; }
 .hub-dot {
-  position: absolute; inset: 50% auto auto 50%; display: block; width: var(--size); height: var(--size);
-  border: 2px solid rgba(255,255,255,0.82); border-radius: 50%; background: var(--color);
-  box-shadow: 0 0 0 4px rgba(8,14,24,0.25), 0 0 18px var(--color);
-  transform: translate(-50%, -50%); transition: opacity .18s, transform .18s;
+  stroke: rgba(255,255,255,0.68); stroke-width: 1.2; transition: opacity .18s, r .18s;
 }
-.hub-marker.focus .hub-dot { background: #101722; border-color: var(--color); border-style: dashed; }
+.hub-marker.focus .hub-dot { fill: #101722; stroke-dasharray: 2.5 2; }
 .hub-label {
-  position: absolute; left: calc(var(--size) / 2 + 5px); top: -12px; color: #f3f5f8;
-  font: 500 10px "DM Mono", monospace; letter-spacing: .05em; text-shadow: 0 1px 3px #000, 0 0 8px #000;
-  pointer-events: none; transition: opacity .18s;
+  fill: #f3f5f8; opacity: 0; paint-order: stroke; stroke: #07101a; stroke-width: 3px;
+  font: 500 10px "DM Mono", monospace; letter-spacing: .05em; pointer-events: none; transition: opacity .18s;
 }
-.hub-marker:hover .hub-dot, .hub-marker.selected .hub-dot { transform: translate(-50%, -50%) scale(1.28); }
-.hub-marker.dimmed { pointer-events: none; }
-.hub-marker.dimmed .hub-dot, .hub-marker.dimmed .hub-label { opacity: 0.12; }
-.hub-marker.hidden { display: none; }
+.hub-marker:hover .hub-halo, .hub-marker:focus .hub-halo, .hub-marker.selected .hub-halo { stroke: rgba(255,255,255,.36); }
+.hub-marker:hover .hub-label, .hub-marker:focus .hub-label, .hub-marker.selected .hub-label, .hub-marker.route-selected .hub-label { opacity: 1; }
+.hub-marker.network-active:not(.network-member) { opacity: .2; }
+.hub-marker.network-member .hub-dot { stroke: rgba(255,255,255,.88); stroke-width: 1.5; }
+.hub-marker.route-selected .hub-halo { stroke: rgba(255,200,87,.72); }
+.hub-marker.dimmed { opacity: 0.12; pointer-events: none; }
+.hub-marker.hidden, .hub-marker.off-globe { display: none; }
+.route-hit { fill: none; stroke: transparent; stroke-width: 9; pointer-events: stroke; }
+.route-highlight { fill: none; stroke-width: 2.2; pointer-events: none; filter: drop-shadow(0 0 4px currentColor); }
 
 .hover-card {
   position: absolute; z-index: 3; display: none; width: 248px; padding: 15px; pointer-events: none;
@@ -218,5 +232,4 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   .airline-filters { max-height: 32px; overflow: hidden; }
   .legend { right: 10px; bottom: calc(41vh + 10px); }
   .map-tip { display: none; }
-  .maplibregl-ctrl-bottom-right { bottom: calc(41vh + 12px); right: 12px; }
 }

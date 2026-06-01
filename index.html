@@ -14,15 +14,11 @@
       href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link
-      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main>
-      <div id="map" aria-label="Interactive map of U.S. airline hubs"></div>
+      <div id="map" aria-label="Interactive globe of U.S. airline hubs"></div>
 
       <header class="topbar">
         <div class="brand">
@@ -42,9 +38,8 @@
           <p class="eyebrow">Explore the network</p>
           <h2>Where America connects.</h2>
           <p>
-            Hover over any hub to reveal its major operating airlines. Marker
-            size reflects annual passenger boardings. Select airlines to compare
-            their U.S. route networks.
+            The default view emphasizes major hubs. Hover to inspect an airport,
+            then select an airline or hub to explore a focused route network.
           </p>
         </div>
 
@@ -78,9 +73,18 @@
         <section class="filter-section">
           <div class="section-heading">
             <h3>Major airlines</h3>
-            <span>Multi-select routes</span>
+            <span>Select a network</span>
           </div>
           <div class="airline-filters" id="airline-filters"></div>
+        </section>
+
+        <section class="route-controls">
+          <label class="route-toggle">
+            <input id="show-routes" type="checkbox" disabled />
+            <span aria-hidden="true"></span>
+            <b>Show routes</b>
+          </label>
+          <p id="route-note">Select an airline or hub to enable a focused network of up to 240 routes.</p>
         </section>
 
         <section class="route-summary" id="route-summary" hidden>
@@ -113,7 +117,7 @@
 
       <div class="hover-card" id="hover-card" aria-live="polite"></div>
 
-      <div class="map-tip">Scroll to zoom · Drag to explore</div>
+      <div class="map-tip">Drag to rotate · Scroll to zoom</div>
 
       <div class="modal-backdrop" id="modal-backdrop" hidden>
         <section class="data-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -157,8 +161,8 @@
       </div>
     </main>
 
-    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
     <script src="data.js"></script>
     <script src="route-data.js"></script>
     <script src="app.js"></script>
