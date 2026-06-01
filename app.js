@@ -381,7 +381,6 @@ function renderNetworkView(routes) {
   const centerAirport = stats.get(centerCode);
   if (!centerAirport) {
     networkChart.selectAll("*").remove();
-    document.querySelector("#network-context").textContent = "No connections";
     document.querySelector("#network-metrics").innerHTML = `<p class="network-empty">Select an airline or hub to inspect its strongest connections.</p>`;
     return;
   }
