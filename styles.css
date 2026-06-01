@@ -190,6 +190,13 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .airline-list { display: flex; flex-wrap: wrap; gap: 5px; }
 .airline-pill { padding: 4px 6px; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; font-size: 10px; }
 .airline-pill::before { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--pill); content: ""; }
+.route-tooltip {
+  position: absolute; z-index: 4; display: none; padding: 6px 8px; pointer-events: none;
+  color: var(--ink); border: 1px solid rgba(255,255,255,.14); border-radius: 5px;
+  background: rgba(8,14,24,.94); box-shadow: 0 7px 18px rgba(0,0,0,.24);
+  font: 500 10px "DM Mono", monospace; letter-spacing: .06em;
+}
+.route-tooltip.visible { display: block; }
 
 .legend {
   position: absolute; right: 18px; bottom: 48px; padding: 12px 14px; color: var(--muted);

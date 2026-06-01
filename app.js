@@ -13,6 +13,7 @@ const routeFeatureCache = new Map();
 const hubsByCode = new Map(HUBS.map((hub) => [hub.code, hub]));
 const allAirlines = Object.keys(ROUTE_NETWORKS);
 const hoverCard = document.querySelector("#hover-card");
+const routeTooltip = document.querySelector("#route-tooltip");
 const airportList = document.querySelector("#airport-list");
 const routeToggle = document.querySelector("#show-routes");
 const mapElement = document.querySelector("#map");
@@ -196,14 +197,33 @@ function bindRouteHover() {
       routeState.hoveredRoute = feature;
       motion.hovering = true;
       pauseRotation();
+      showRouteTooltip(event, feature);
       updateRouteHighlight();
     })
+    .on("mousemove", (event) => positionRouteTooltip(event))
     .on("mouseleave", () => {
       routeState.hoveredRoute = undefined;
       motion.hovering = false;
+      hideRouteTooltip();
       updateRouteHighlight();
     });
   updateRouteHighlight();
+}
+
+function showRouteTooltip(event, feature) {
+  const { origin, destination } = feature.properties;
+  routeTooltip.textContent = `${origin}-${destination}`;
+  positionRouteTooltip(event);
+  routeTooltip.classList.add("visible");
+}
+
+function positionRouteTooltip(event) {
+  routeTooltip.style.left = `${event.clientX + 14}px`;
+  routeTooltip.style.top = `${event.clientY + 14}px`;
+}
+
+function hideRouteTooltip() {
+  routeTooltip.classList.remove("visible");
 }
 
 function updateRouteHighlight() {
@@ -230,6 +250,7 @@ function refreshRoutes() {
   if (!routeFeatures.includes(routeState.hoveredRoute)) {
     routeState.hoveredRoute = undefined;
     motion.hovering = false;
+    hideRouteTooltip();
   }
   const airlines = [...new Set(routeFeatures.map((feature) => feature.properties.airline))];
   routeCollections = airlines.map((airline) => ({
@@ -477,7 +498,7 @@ svg.on("wheel", (event) => {
 function animate(now) {
   const elapsed = Math.min(now - motion.lastFrame, 80);
   motion.lastFrame = now;
-  const shouldRotate = !motion.reducedMotion && !motion.dragging && !motion.hovering && !hasRouteSelection();
+  const shouldRotate = !motion.reducedMotion && !motion.dragging && !motion.hovering && !routeState.hubCode;
   if (shouldRotate) {
     const speed = now < motion.resumeAt ? 0.0015 : 0.004;
     const rotation = projection.rotate();
