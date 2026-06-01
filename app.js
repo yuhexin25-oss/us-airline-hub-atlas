@@ -113,6 +113,7 @@ const airlineComparisonChart = d3.select("#airline-comparison-chart");
 const networkChart = d3.select("#network-chart");
 const hubDetail = document.querySelector("#hub-detail");
 const mapElement = document.querySelector("#map");
+const controlPanel = document.querySelector(".control-panel");
 const canvas = d3.select(mapElement).append("canvas").attr("class", "globe-canvas").node();
 const context = canvas.getContext("2d");
 const svg = d3.select(mapElement).append("svg")
@@ -149,6 +150,38 @@ let routeCollections = [];
 let routeAirportCodes = new Set();
 let hoveredHub;
 let responsiveResizeFrame;
+
+function enableSidebarDiagnostics() {
+  if (!new URLSearchParams(window.location.search).has("debugSidebar")) return;
+  document.documentElement.classList.add("sidebar-debug");
+  const elements = {
+    sidebar: controlPanel,
+    map: mapElement,
+    canvas,
+    globeOverlay: svg.node()
+  };
+  const snapshot = () => Object.fromEntries(Object.entries(elements).map(([name, element]) => {
+    const styles = getComputedStyle(element);
+    return [name, {
+      bounds: element.getBoundingClientRect().toJSON(),
+      zIndex: styles.zIndex,
+      overflow: styles.overflow,
+      overflowY: styles.overflowY,
+      pointerEvents: styles.pointerEvents,
+      position: styles.position,
+      touchAction: styles.touchAction
+    }];
+  }));
+  console.log("sidebar diagnostics:", snapshot());
+  document.addEventListener("click", (event) => {
+    console.log("clicked:", event.target, {
+      pointTarget: document.elementFromPoint(event.clientX, event.clientY),
+      snapshot: snapshot()
+    });
+  }, true);
+}
+
+enableSidebarDiagnostics();
 
 function responsiveWidth() {
   return mapElement.clientWidth || window.innerWidth;
