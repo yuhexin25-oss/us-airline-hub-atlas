@@ -83,6 +83,7 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 
 .control-panel {
   position: absolute;
+  z-index: 2;
   left: 18px;
   top: 174px;
   bottom: 18px;
