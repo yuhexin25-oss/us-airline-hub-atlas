@@ -114,6 +114,9 @@ const airlineComparisonChart = d3.select("#airline-comparison-chart");
 const networkChart = d3.select("#network-chart");
 const hubDetail = document.querySelector("#hub-detail");
 const mapElement = document.querySelector("#map");
+const controlPanel = document.querySelector(".control-panel");
+const analysisPanel = document.querySelector(".analysis-panel");
+const topbar = document.querySelector(".topbar");
 const canvas = d3.select(mapElement).append("canvas").attr("class", "globe-canvas").node();
 const context = canvas.getContext("2d");
 const svg = d3.select(mapElement).append("svg")
@@ -149,6 +152,38 @@ let routeFeatures = [];
 let routeCollections = [];
 let routeAirportCodes = new Set();
 let hoveredHub;
+let globeLayout;
+
+function visibleRect(element) {
+  if (!element || getComputedStyle(element).display === "none") return undefined;
+  const rect = element.getBoundingClientRect();
+  return rect.width && rect.height ? rect : undefined;
+}
+
+function calculateGlobeLayout() {
+  const mapRect = mapElement.getBoundingClientRect();
+  const leftPanelRect = visibleRect(controlPanel);
+  const rightPanelRect = visibleRect(analysisPanel);
+  const topbarRect = visibleRect(topbar);
+  const gutter = 18;
+  const mobileSheet = window.innerWidth <= 700 && leftPanelRect;
+  const left = leftPanelRect && !mobileSheet ? leftPanelRect.right - mapRect.left + gutter : 0;
+  const right = rightPanelRect ? rightPanelRect.left - mapRect.left - gutter : width;
+  const top = topbarRect ? topbarRect.bottom - mapRect.top : 0;
+  const bottom = mobileSheet ? leftPanelRect.top - mapRect.top : height;
+  const availableWidth = Math.max(1, right - left);
+  const availableHeight = Math.max(1, bottom - top);
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    centerX: left + availableWidth / 2,
+    centerY: top + availableHeight / 2,
+    availableWidth,
+    availableHeight
+  };
+}
 
 function routeKey(airline, origin, destination) {
   return `${airline}:${origin}:${destination}`;
@@ -1072,7 +1107,8 @@ function resize() {
   const devicePixelRatio = window.devicePixelRatio || 1;
   width = mapElement.clientWidth;
   height = mapElement.clientHeight;
-  baseScale = Math.min(width * (window.innerWidth > 700 ? 0.34 : 0.43), height * 0.44);
+  globeLayout = calculateGlobeLayout();
+  baseScale = Math.min(globeLayout.availableWidth * 0.46, globeLayout.availableHeight * 0.44);
   canvas.width = width * devicePixelRatio;
   canvas.height = height * devicePixelRatio;
   canvas.style.width = `${width}px`;
@@ -1080,11 +1116,27 @@ function resize() {
   context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   svg.attr("viewBox", `0 0 ${width} ${height}`);
   projection
-    .translate([width * (window.innerWidth > 700 ? 0.61 : 0.5), height * (window.innerWidth > 700 ? 0.55 : 0.38)])
+    .translate([globeLayout.centerX, globeLayout.centerY])
     .scale(baseScale * zoomFactor);
+  updateGlobeDebugOverlay();
   if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
   requestRender();
   renderDashboard();
+}
+
+function updateGlobeDebugOverlay() {
+  const enabled = new URLSearchParams(window.location.search).has("debugGlobe");
+  const debugLayer = svg.selectAll(".globe-layout-debug").data(enabled && globeLayout ? [globeLayout] : []).join("g")
+    .attr("class", "globe-layout-debug");
+  debugLayer.selectAll("rect").data((layout) => [layout]).join("rect")
+    .attr("x", (layout) => layout.left)
+    .attr("y", (layout) => layout.top)
+    .attr("width", (layout) => layout.availableWidth)
+    .attr("height", (layout) => layout.availableHeight);
+  debugLayer.selectAll("circle").data((layout) => [layout]).join("circle")
+    .attr("cx", (layout) => layout.centerX)
+    .attr("cy", (layout) => layout.centerY)
+    .attr("r", 5);
 }
 
 svg.call(d3.drag()

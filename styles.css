@@ -22,6 +22,9 @@ button { cursor: pointer; }
 .globe-canvas { pointer-events: none; }
 .globe-overlay { z-index: 1; pointer-events: auto; touch-action: none; cursor: grab; }
 .globe-overlay:active { cursor: grabbing; }
+.globe-layout-debug { pointer-events: none; }
+.globe-layout-debug rect { fill: none; stroke: #70c79b; stroke-dasharray: 5 4; stroke-width: 1; }
+.globe-layout-debug circle { fill: #ffc857; stroke: #111923; stroke-width: 2; }
 
 .topbar {
   position: absolute;
