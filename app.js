@@ -371,35 +371,162 @@ function renderHubDetail(stats) {
 
 function renderNetworkView(routes) {
   const width = networkChart.node()?.clientWidth || 314;
-  const height = 230;
-  const sampledRoutes = [...routes]
-    .sort((a, b) => Number(b.origin === routeState.hubCode || b.destination === routeState.hubCode) - Number(a.origin === routeState.hubCode || a.destination === routeState.hubCode) || analyticRoutePriority(b) - analyticRoutePriority(a))
-    .slice(0, 72);
-  const links = sampledRoutes.map((route) => ({ ...route, source: route.origin, target: route.destination }));
-  const sampledStats = airportStats(sampledRoutes);
-  const nodes = [...sampledStats.values()].map((airport) => ({ id: airport.code, degree: airport.routes }));
-  const radius = d3.scaleSqrt().domain([1, d3.max(nodes, (node) => node.degree) || 1]).range([2.5, 8]);
+  const height = 258;
+  const selectedAirline = filters.airlines.size === 1 ? [...filters.airlines][0] : undefined;
+  const stats = airportStats(routes);
+  const fallbackHub = selectedAirline
+    ? AIRLINE_STORIES[selectedAirline]?.primaryHub
+    : [...stats.values()].sort((a, b) => d3.descending(a.routes, b.routes))[0]?.code;
+  const centerCode = routeState.hubCode && stats.has(routeState.hubCode) ? routeState.hubCode : fallbackHub;
+  const centerAirport = stats.get(centerCode);
+  if (!centerAirport) {
+    networkChart.selectAll("*").remove();
+    document.querySelector("#network-context").textContent = "No connections";
+    document.querySelector("#network-metrics").innerHTML = `<p class="network-empty">Select an airline or hub to inspect its strongest connections.</p>`;
+    return;
+  }
+
+  const connections = new Map();
+  routes.forEach((route) => {
+    const connectedCode = route.origin === centerCode
+      ? route.destination
+      : route.destination === centerCode ? route.origin : undefined;
+    if (!connectedCode) return;
+    const key = connectedCode;
+    if (!connections.has(key)) connections.set(key, { code: connectedCode, strength: 0, routes: [] });
+    connections.get(key).strength += 1;
+    connections.get(key).routes.push(route);
+  });
+  const strongestConnections = [...connections.values()]
+    .sort((a, b) => d3.descending(a.strength, b.strength) || d3.descending(stats.get(a.code)?.routes || 0, stats.get(b.code)?.routes || 0))
+    .slice(0, 24);
+  const totalStrength = d3.sum(strongestConnections, (connection) => connection.strength);
+  const concentration = totalStrength
+    ? d3.sum(strongestConnections, (connection) => (connection.strength / totalStrength) ** 2)
+    : 0;
+  const strongest = strongestConnections[0];
+  document.querySelector("#network-context").textContent = `${centerCode} centered`;
+  document.querySelector("#network-metrics").innerHTML = `
+    <span>Degree<b>${connections.size}</b></span>
+    <span>Visible links<b>${strongestConnections.length}</b></span>
+    <span>Strongest<b>${strongest ? `${strongest.code} · ${strongest.strength}` : "—"}</b></span>
+    <span>Airline<b>${selectedAirline || "All"}</b></span>
+    <span>Concentration<b>${d3.format(".2f")(concentration)}</b></span>
+  `;
+
+  const importance = (code) => stats.get(code)?.routes || hubsByCode.get(code)?.enplanements / 1000000 || 1;
+  const nodes = [
+    { id: centerCode, center: true, importance: importance(centerCode), role: networkNodeRole(centerCode) },
+    ...strongestConnections.map((connection) => ({
+      id: connection.code,
+      center: false,
+      importance: importance(connection.code),
+      role: networkNodeRole(connection.code),
+      strength: connection.strength
+    }))
+  ];
+  const links = strongestConnections.map((connection) => ({
+    source: centerCode,
+    target: connection.code,
+    strength: connection.strength,
+    routes: connection.routes
+  }));
+  const radius = d3.scaleSqrt().domain(d3.extent(nodes, (node) => node.importance)).range([3.2, 10]);
+  const linkWidth = d3.scaleLinear().domain([1, d3.max(links, (link) => link.strength) || 1]).range([0.7, 3]);
+  const linkDistance = d3.scaleLinear().domain([1, d3.max(links, (link) => link.strength) || 1]).range([100, 42]);
   networkChart.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+  const centerX = width / 2;
+  const centerY = height / 2;
+  nodes[0].fx = centerX;
+  nodes[0].fy = centerY;
   const simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id((node) => node.id).distance(26).strength(0.5))
-    .force("charge", d3.forceManyBody().strength(-30))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collide", d3.forceCollide((node) => radius(node.degree) + 2))
+    .force("link", d3.forceLink(links).id((node) => node.id).distance((link) => linkDistance(link.strength)).strength(0.8))
+    .force("charge", d3.forceManyBody().strength(-46))
+    .force("x", d3.forceX(centerX).strength(0.035))
+    .force("y", d3.forceY(centerY).strength(0.035))
+    .force("collide", d3.forceCollide((node) => radius(node.importance) + 8))
     .stop();
-  for (let index = 0; index < 100; index += 1) simulation.tick();
+  for (let index = 0; index < 150; index += 1) simulation.tick();
+  const topLabelIds = new Set([centerCode, ...strongestConnections.slice(0, 5).map((connection) => connection.code)]);
+  positionNetworkLabels(nodes, topLabelIds, radius);
   networkChart.append("g").selectAll("line").data(links).join("line")
     .attr("class", "network-link")
+    .attr("stroke-width", (link) => linkWidth(link.strength))
     .attr("x1", (link) => link.source.x).attr("y1", (link) => link.source.y)
-    .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y);
+    .attr("x2", (link) => link.target.x).attr("y2", (link) => link.target.y)
+    .on("mouseenter", function (_, link) {
+      d3.select(this).classed("hovered", true);
+      highlightGlobeConnection(link.routes);
+    })
+    .on("mouseleave", function () {
+      d3.select(this).classed("hovered", false);
+      clearGlobeConnectionHighlight();
+    });
   networkChart.append("g").selectAll("circle").data(nodes).join("circle")
-    .attr("class", (node) => `network-node ${node.id === routeState.hubCode ? "selected" : ""}`)
-    .attr("cx", (node) => node.x).attr("cy", (node) => node.y).attr("r", (node) => radius(node.degree))
-    .attr("fill", filters.airlines.size === 1 ? AIRLINE_COLORS[[...filters.airlines][0]] : "#ffc857")
-    .on("mouseenter", (_, node) => highlightDashboardHub(node.id, true))
-    .on("mouseleave", (_, node) => highlightDashboardHub(node.id, false))
+    .attr("class", (node) => `network-node ${node.center ? "selected" : ""}`)
+    .attr("cx", (node) => node.x).attr("cy", (node) => node.y).attr("r", (node) => radius(node.importance))
+    .attr("fill", (node) => networkRoleColor(node.role))
+    .on("mouseenter", function (_, node) {
+      highlightDashboardHub(node.id, true);
+      d3.select(this.parentNode.parentNode).selectAll(".network-label")
+        .filter((label) => label.id === node.id)
+        .classed("hovered", true);
+    })
+    .on("mouseleave", function (_, node) {
+      highlightDashboardHub(node.id, false);
+      d3.select(this.parentNode.parentNode).selectAll(".network-label")
+        .filter((label) => label.id === node.id)
+        .classed("hovered", false);
+    })
     .on("click", (_, node) => selectAirportCode(node.id));
-  networkChart.append("g").selectAll("text").data(nodes.filter((node) => node.degree >= 4 || node.id === routeState.hubCode)).join("text")
-    .attr("class", "network-label").attr("x", (node) => node.x + radius(node.degree) + 3).attr("y", (node) => node.y + 2).text((node) => node.id);
+  networkChart.append("g").selectAll("text").data(nodes).join("text")
+    .attr("class", (node) => `network-label ${topLabelIds.has(node.id) ? "always-visible" : ""}`)
+    .attr("x", (node) => node.labelX).attr("y", (node) => node.labelY).text((node) => node.id);
+}
+
+function positionNetworkLabels(nodes, visibleIds, radius) {
+  const occupied = [];
+  nodes.forEach((node) => {
+    const nodeRadius = radius(node.importance);
+    const candidates = [
+      [node.x + nodeRadius + 4, node.y + 2],
+      [node.x - nodeRadius - 22, node.y + 2],
+      [node.x - 9, node.y - nodeRadius - 5],
+      [node.x - 9, node.y + nodeRadius + 10]
+    ];
+    const selected = candidates.find(([x, y]) => {
+      const box = { left: x - 2, right: x + 21, top: y - 8, bottom: y + 3 };
+      const overlaps = occupied.some((other) =>
+        box.left < other.right && box.right > other.left &&
+        box.top < other.bottom && box.bottom > other.top
+      );
+      if (!overlaps && visibleIds.has(node.id)) occupied.push(box);
+      return !overlaps;
+    }) || candidates[0];
+    [node.labelX, node.labelY] = selected;
+  });
+}
+
+function networkNodeRole(code) {
+  const hub = hubsByCode.get(code);
+  return hub?.role === "Primary hub" ? "primary" : hub?.role === "Focus city" ? "focus" : "connected";
+}
+
+function networkRoleColor(role) {
+  return role === "primary" ? "#ffc857" : role === "focus" ? "#70c79b" : "#73808d";
+}
+
+function highlightGlobeConnection(routes) {
+  const features = routes.map(({ airline, origin, destination }) => getRouteFeature(airline, origin, destination));
+  const route = features.find((feature) => routeFeatures.includes(feature)) || features[0];
+  if (!route) return;
+  routeState.hoveredRoute = route;
+  updateRouteHighlight();
+}
+
+function clearGlobeConnectionHighlight() {
+  routeState.hoveredRoute = undefined;
+  updateRouteHighlight();
 }
 
 function isVisible(coordinates, center = projection.invert(projection.translate())) {

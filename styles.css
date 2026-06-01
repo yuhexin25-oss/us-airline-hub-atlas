@@ -190,7 +190,7 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .analysis-heading h2 { font-size: 15px; letter-spacing: -.035em; }
 .analysis-heading > span { color: var(--dim); font: 8px "DM Mono", monospace; text-align: right; text-transform: uppercase; }
 .chart { display: block; width: 100%; height: 184px; margin-top: 10px; overflow: visible; }
-.network-chart { display: block; width: 100%; height: 230px; margin-top: 8px; overflow: hidden; }
+.network-chart { display: block; width: 100%; height: 258px; margin-top: 8px; overflow: hidden; }
 .chart text, .network-chart text { font-family: "DM Mono", monospace; }
 .chart-axis text { fill: var(--dim); font-size: 8px; }
 .chart-axis line, .chart-axis path { stroke: rgba(255,255,255,.09); }
@@ -206,10 +206,26 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .detail-grid b { display: block; margin-top: 2px; color: var(--accent); font: 500 14px "Manrope", sans-serif; text-transform: none; }
 .detail-copy { margin-top: 9px; color: var(--muted); font-size: 10px; line-height: 1.55; }
 .detail-copy b { color: var(--ink); }
-.network-link { stroke: rgba(133,147,161,.22); }
+.network-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
+.network-metrics span { padding: 6px; color: var(--dim); border: 1px solid var(--line); border-radius: 5px; font: 7px "DM Mono", monospace; text-transform: uppercase; }
+.network-metrics b { display: block; margin-top: 2px; overflow: hidden; color: var(--accent); font: 500 11px "Manrope", sans-serif; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.network-empty { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.network-link { cursor: pointer; stroke: rgba(133,147,161,.24); transition: stroke .18s, opacity .18s; }
+.network-link.hovered { stroke: var(--accent); opacity: 1; }
 .network-node { cursor: pointer; stroke: rgba(255,255,255,.6); stroke-width: .8; }
 .network-node.selected { stroke: var(--accent); stroke-width: 2.4; }
-.network-label { fill: #cbd4dc; font-size: 7px; pointer-events: none; }
+.network-label { fill: #cbd4dc; font-size: 7px; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.network-label.always-visible, .network-label.hovered { opacity: 1; }
+.network-legend { display: flex; flex-wrap: wrap; gap: 7px 11px; padding-top: 8px; border-top: 1px solid var(--line); }
+.network-legend span { color: var(--dim); font: 7px "DM Mono", monospace; text-transform: uppercase; }
+.network-legend i { display: inline-block; margin-right: 4px; vertical-align: middle; }
+.legend-node-size { width: 8px; height: 8px; border: 1px solid var(--accent); border-radius: 50%; }
+.legend-link-weight { width: 14px; border-top: 2px solid #82909d; }
+.legend-role { width: 7px; height: 7px; border-radius: 50%; }
+.legend-role.primary { background: #ffc857; }
+.legend-role.focus { background: #70c79b; }
+.legend-role.connected { background: #73808d; }
+.role-key .legend-role + .legend-role { margin-left: -3px; }
 
 .hub-marker {
   cursor: pointer; outline: none; transition: opacity .18s;

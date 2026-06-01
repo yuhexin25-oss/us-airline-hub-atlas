@@ -146,9 +146,15 @@
               <p class="eyebrow">Network structure</p>
               <h2>Hub connectivity</h2>
             </div>
-            <span>Filtered sample</span>
+            <span id="network-context">Weighted ego network</span>
           </div>
+          <div class="network-metrics" id="network-metrics"></div>
           <svg class="network-chart" id="network-chart" role="img" aria-label="Force-directed airline route network"></svg>
+          <div class="network-legend">
+            <span><i class="legend-node-size"></i> Size = importance</span>
+            <span><i class="legend-link-weight"></i> Link = strength</span>
+            <span class="role-key"><i class="legend-role primary"></i><i class="legend-role focus"></i><i class="legend-role connected"></i> Color = role</span>
+          </div>
         </section>
       </aside>
 
