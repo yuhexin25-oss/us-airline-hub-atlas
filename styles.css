@@ -42,83 +42,83 @@ button { cursor: pointer; }
 .map-guide {
   position: absolute;
   z-index: 2;
-  top: 96px;
+  top: 92px;
   left: 346px;
   right: 378px;
-  display: grid;
-  grid-template-columns: minmax(170px, 0.52fr) minmax(0, 1.48fr);
-  gap: 12px;
+  display: flex;
+  min-height: 42px;
+  max-height: 60px;
+  gap: 11px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(9, 16, 28, 0.74);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(14px);
+  border-radius: 8px;
+  background: rgba(9, 16, 28, 0.68);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(12px);
   pointer-events: none;
 }
-.guide-title strong {
-  display: block;
-  max-width: 270px;
-  color: #dce3eb;
-  font-size: 11px;
-  line-height: 1.35;
-}
+.guide-title { flex: 0 0 auto; }
+.guide-title .eyebrow { margin: 0; font-size: 8px; letter-spacing: .11em; white-space: nowrap; }
 .guide-items {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px 13px;
-  justify-content: flex-end;
+  gap: 5px 12px;
+  justify-content: flex-start;
+  align-items: center;
+  min-width: 0;
 }
 .guide-items span {
   display: inline-flex;
-  min-height: 18px;
+  min-height: 14px;
   align-items: center;
   color: var(--muted);
-  font: 9px/1.25 "DM Mono", monospace;
+  font: 7px/1.15 "DM Mono", monospace;
+  letter-spacing: .02em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
-.guide-items i { display: inline-block; flex: 0 0 auto; margin-right: 6px; }
+.guide-items i { display: inline-block; flex: 0 0 auto; margin-right: 5px; }
 .guide-circle-size {
-  width: 15px;
-  height: 15px;
+  width: 11px;
+  height: 11px;
   border: 1px solid rgba(255,255,255,.75);
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: inset 0 0 0 4px rgba(17,25,35,.7);
+  box-shadow: inset 0 0 0 3px rgba(17,25,35,.7);
 }
 .guide-circle-color {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: linear-gradient(135deg, #df4f83 0 33%, #5c8eff 33% 66%, #70c79b 66%);
 }
 .guide-route {
-  width: 22px;
+  width: 18px;
   border-top: 2px solid var(--accent);
   filter: drop-shadow(0 0 4px rgba(255,200,87,.45));
 }
 .guide-focus {
-  width: 13px;
-  height: 13px;
+  width: 10px;
+  height: 10px;
   border: 1px dashed var(--accent);
   border-radius: 50%;
 }
 .guide-primary {
-  width: 17px;
-  height: 17px;
+  width: 13px;
+  height: 13px;
   border: 1px solid rgba(255,255,255,.8);
   border-radius: 50%;
   background: rgba(255,200,87,.9);
 }
 .guide-action {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   border: 1px solid rgba(255,255,255,.34);
   border-radius: 50%;
   background:
-    linear-gradient(90deg, transparent 6px, var(--accent) 6px 8px, transparent 8px),
-    linear-gradient(transparent 6px, var(--accent) 6px 8px, transparent 8px);
+    linear-gradient(90deg, transparent 5px, var(--accent) 5px 6px, transparent 6px),
+    linear-gradient(transparent 5px, var(--accent) 5px 6px, transparent 6px);
 }
 
 .brand { display: flex; gap: 13px; align-items: center; }
@@ -511,10 +511,8 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
   .analysis-panel { display: none; }
   .map-guide {
     right: 18px;
-    grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 9px;
   }
-  .guide-title strong { max-width: none; }
   .guide-items { justify-content: flex-start; }
   .map-tip, .zoom-controls, .legend { right: 18px; }
 }
