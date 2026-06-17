@@ -1,9 +1,10 @@
 # U.S. Airline Network Dashboard
 
-An interactive D3.js orthographic-globe visualization of major U.S. airline hubs
-and focus cities with linked KPI cards, ranking charts, airline comparisons, hub
-details, and a compact network view. Hover over an airport to see its major
-operating airlines, or use the panel to search, filter, and compare route networks.
+An interactive D3.js U.S. airline network atlas using an Albers USA projection
+with Alaska and Hawaii insets. It combines airport markers, selected route arcs,
+ranking charts, airline comparisons, hub details, and a compact network view.
+Hover over an airport to see its major operating airlines, or use the panel to
+search, filter, and compare route networks.
 
 ## Run locally
 

@@ -1,9 +1,9 @@
 const MAX_VISIBLE_ROUTES = 240;
 const ROUTE_SAMPLE_COUNT = 14;
-const MIN_ZOOM = 0.72;
-const MAX_ZOOM = 4.4;
-const REGIONAL_ZOOM = 1.3;
-const CLOSE_REGIONAL_ZOOM = 2.35;
+const MIN_ZOOM = 0.86;
+const MAX_ZOOM = 5.2;
+const REGIONAL_ZOOM = 1.18;
+const CLOSE_REGIONAL_ZOOM = 2.05;
 const passengerFormat = d3.format(".3~s");
 const passengerLongFormat = d3.format(",");
 const radiusScale = d3.scaleSqrt()
@@ -122,15 +122,14 @@ const context = canvas.getContext("2d");
 const svg = d3.select(mapElement).append("svg")
   .attr("class", "globe-overlay")
   .attr("role", "img")
-  .attr("aria-label", "Rotating globe showing U.S. airline hubs and selected route arcs");
+  .attr("aria-label", "U.S. airline network map showing hubs and selected route arcs");
 const routeHitLayer = svg.append("g").attr("class", "route-hit-layer");
 const routeHighlightLayer = svg.append("g").attr("class", "route-highlight-layer");
 const hubLayer = svg.append("g").attr("class", "hub-layer");
-const projection = d3.geoOrthographic().precision(0.6).rotate([98, -36, 0]);
+const projection = d3.geoAlbersUsa().precision(0.3);
 const canvasPath = d3.geoPath(projection, context);
 const svgPath = d3.geoPath(projection);
-const graticule = d3.geoGraticule10();
-const sphere = { type: "Sphere" };
+const routeCurve = d3.line().curve(d3.curveBasis);
 const motion = {
   dragging: false,
   hovering: false,
@@ -143,16 +142,25 @@ const motion = {
 let width;
 let height;
 let baseScale;
+let baseTranslate;
 let zoomFactor = 1;
-let land;
-let countryBorders;
+let nation;
 let stateBorders;
+let stateFeatures;
 let stateLoadPromise;
 let routeFeatures = [];
 let routeCollections = [];
 let routeAirportCodes = new Set();
 let hoveredHub;
 let globeLayout;
+let mapOffset = [0, 0];
+const usaFitFeature = {
+  type: "FeatureCollection",
+  features: allRouteAirports.map((airport) => ({
+    type: "Feature",
+    geometry: { type: "Point", coordinates: airport.coordinates }
+  }))
+};
 
 function visibleRect(element) {
   if (!element || getComputedStyle(element).display === "none") return undefined;
@@ -192,17 +200,9 @@ function routeKey(airline, origin, destination) {
 function getRouteFeature(airline, origin, destination) {
   const key = routeKey(airline, origin, destination);
   if (!routeFeatureCache.has(key)) {
-    const interpolate = d3.geoInterpolate(
-      ROUTE_AIRPORTS[origin].coordinates,
-      ROUTE_AIRPORTS[destination].coordinates
-    );
     routeFeatureCache.set(key, {
       type: "Feature",
-      properties: { key, airline, color: AIRLINE_COLORS[airline], origin, destination },
-      geometry: {
-        type: "LineString",
-        coordinates: d3.range(ROUTE_SAMPLE_COUNT).map((index) => interpolate(index / (ROUTE_SAMPLE_COUNT - 1)))
-      }
+      properties: { key, airline, color: AIRLINE_COLORS[airline], origin, destination }
     });
   }
   return routeFeatureCache.get(key);
@@ -432,7 +432,7 @@ function renderHubDetail(stats) {
     hubDetail.innerHTML = `
       <p class="eyebrow">Airport detail</p>
       <h2>Select a hub</h2>
-      <p class="detail-copy">Choose a globe marker, ranking bar, or network node to inspect its role in the filtered network.</p>
+      <p class="detail-copy">Choose a map marker, ranking bar, or network node to inspect its role in the filtered network.</p>
     `;
     return;
   }
@@ -664,8 +664,13 @@ function clearGlobeConnectionHighlight() {
   updateRouteHighlight();
 }
 
-function isVisible(coordinates, center = projection.invert(projection.translate())) {
-  return d3.geoDistance(coordinates, center) < Math.PI / 2;
+function projectedPoint(coordinates) {
+  const point = projection(coordinates);
+  return point && Number.isFinite(point[0]) && Number.isFinite(point[1]) ? point : undefined;
+}
+
+function isVisible(coordinates) {
+  return Boolean(projectedPoint(coordinates));
 }
 
 function drawPath(feature, fill, stroke, lineWidth, alpha = 1) {
@@ -684,22 +689,63 @@ function drawPath(feature, fill, stroke, lineWidth, alpha = 1) {
   }
 }
 
-function drawGlobe() {
+function routeArcPoints(feature) {
+  const origin = ROUTE_AIRPORTS[feature.properties.origin];
+  const destination = ROUTE_AIRPORTS[feature.properties.destination];
+  if (!origin || !destination) return undefined;
+  const start = projectedPoint(origin.coordinates);
+  const end = projectedPoint(destination.coordinates);
+  if (!start || !end) return undefined;
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const distance = Math.hypot(dx, dy);
+  if (!distance) return [start, end];
+  const curve = Math.min(78, Math.max(16, distance * 0.18));
+  const direction = start[0] < end[0] ? -1 : 1;
+  const midpoint = [
+    (start[0] + end[0]) / 2 + (-dy / distance) * curve * direction,
+    (start[1] + end[1]) / 2 + (dx / distance) * curve * direction
+  ];
+  return [start, midpoint, end];
+}
+
+function routePath(feature) {
+  const points = routeArcPoints(feature);
+  return points ? routeCurve(points) : undefined;
+}
+
+function drawRouteArc(feature, stroke, lineWidth, alpha) {
+  const path = routePath(feature);
+  if (!path) return;
+  const routePath2d = new Path2D(path);
+  context.strokeStyle = stroke;
+  context.lineWidth = lineWidth;
+  context.globalAlpha = alpha;
+  context.stroke(routePath2d);
+}
+
+function drawMap() {
   context.clearRect(0, 0, width, height);
-  drawPath(sphere, "#111923", "#55606d", 0.7, 1);
-  drawPath(graticule, null, "#718090", 0.35, 0.08);
-  if (land) drawPath(land, "#202b36", "#6d7986", 0.4, 0.54);
-  if (countryBorders) drawPath(countryBorders, null, "#78838f", 0.38, zoomFactor < REGIONAL_ZOOM ? 0.22 : 0.12);
-  if (zoomFactor >= REGIONAL_ZOOM && stateBorders) drawPath(stateBorders, null, "#8b96a2", 0.5, 0.24);
-  drawReferenceLabels();
-  if (zoomFactor >= REGIONAL_ZOOM) drawRegionalAirports();
+  context.fillStyle = "#0f161f";
+  context.fillRect(0, 0, width, height);
+
+  if (nation) {
+    drawPath(nation, "#1e2a35", "#6c7886", 0.7, 0.88);
+  }
+  if (stateBorders) {
+    drawPath(stateBorders, null, "#8a96a3", zoomFactor >= REGIONAL_ZOOM ? 0.55 : 0.42, zoomFactor >= REGIONAL_ZOOM ? 0.34 : 0.22);
+  }
+  drawRegionalLabels();
+  drawRegionalAirports();
 
   if (routeCollections.length) {
     context.save();
     context.globalCompositeOperation = "lighter";
     routeCollections.forEach((collection) => {
-      drawPath(collection, null, collection.properties.color, 3, 0.045);
-      drawPath(collection, null, collection.properties.color, 0.85, 0.54);
+      collection.features.forEach((feature) => {
+        drawRouteArc(feature, collection.properties.color, 3.4, 0.035);
+        drawRouteArc(feature, collection.properties.color, 0.9, 0.56);
+      });
     });
     context.restore();
 
@@ -720,31 +766,29 @@ function drawGlobe() {
 
 function updateRouteOverlays() {
   routeHitLayer.selectAll(".route-hit")
-    .attr("d", svgPath);
+    .attr("d", routePath);
   routeHighlightLayer.selectAll(".route-highlight")
-    .attr("d", svgPath);
+    .attr("d", routePath);
 }
 
-function drawReferenceLabels() {
-  const center = projection.invert(projection.translate());
+function drawRegionalLabels() {
   const occupied = [];
-  const labels = zoomFactor >= CLOSE_REGIONAL_ZOOM
-    ? [...REFERENCE_LABELS, ...US_METRO_LABELS.map((label) => ({ ...label, type: "metro", priority: 4, minZoom: CLOSE_REGIONAL_ZOOM }))]
-    : REFERENCE_LABELS;
+  const labels = [
+    { name: "United States", coordinates: [-98, 39], type: "country", priority: 10 },
+    { name: "Alaska", coordinates: [-151, 64], type: "inset", priority: 6 },
+    { name: "Hawaii", coordinates: [-157.5, 20.6], type: "inset", priority: 6 },
+    ...US_METRO_LABELS.map((label) => ({ ...label, type: "metro", priority: 4, minZoom: REGIONAL_ZOOM }))
+  ];
   const visibleLabels = labels
     .map((label) => {
-      const distance = d3.geoDistance(label.coordinates, center);
-      const edgeOpacity = Math.max(0, Math.min(1, (Math.cos(distance) - 0.12) / 0.6));
-      const [x, y] = projection(label.coordinates);
+      const point = projectedPoint(label.coordinates);
+      if (!point) return undefined;
+      const [x, y] = point;
       const fontSize = label.type === "country" ? 8 : 7;
       const width = label.name.length * fontSize * 0.62;
-      return { ...label, x, y, edgeOpacity, width, height: fontSize + 3 };
+      return { ...label, x, y, width, height: fontSize + 3 };
     })
-    .filter((label) =>
-      label.edgeOpacity > 0 &&
-      zoomFactor >= (label.minZoom || MIN_ZOOM) &&
-      zoomFactor <= (label.type === "country" ? Math.min(label.maxZoom || MAX_ZOOM, 1.55) : (label.maxZoom || MAX_ZOOM))
-    )
+    .filter((label) => label && zoomFactor >= (label.minZoom || MIN_ZOOM))
     .sort((a, b) => d3.descending(a.priority, b.priority) || d3.ascending(a.type, b.type));
 
   visibleLabels.forEach((label) => {
@@ -760,24 +804,24 @@ function drawReferenceLabels() {
     );
     if (!overlaps) {
       occupied.push(box);
-      context.globalAlpha = label.edgeOpacity * (label.type === "country" ? 0.62 : 0.52);
-      context.fillStyle = label.type === "country" ? "#737b85" : "#656d77";
+      context.globalAlpha = label.type === "country" ? 0.58 : 0.46;
+      context.fillStyle = label.type === "country" ? "#737f8b" : "#69737f";
       context.font = `400 ${label.type === "country" ? 8 : 7}px "DM Mono", monospace`;
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText(label.type === "country" ? label.name.toUpperCase() : label.name, label.x, label.y);
+      context.fillText(label.name.toUpperCase(), label.x, label.y);
     }
   });
   context.globalAlpha = 1;
 }
 
 function drawRegionalAirports() {
-  const center = projection.invert(projection.translate());
   context.fillStyle = "#8e99a5";
   context.globalAlpha = zoomFactor >= CLOSE_REGIONAL_ZOOM ? 0.2 : 0.12;
   allRouteAirports.forEach((airport) => {
-    if (!isVisible(airport.coordinates, center)) return;
-    const [x, y] = projection(airport.coordinates);
+    const point = projectedPoint(airport.coordinates);
+    if (!point) return;
+    const [x, y] = point;
     context.beginPath();
     context.arc(x, y, zoomFactor >= CLOSE_REGIONAL_ZOOM ? 1 : 0.7, 0, Math.PI * 2);
     context.fill();
@@ -787,7 +831,6 @@ function drawRegionalAirports() {
 
 function drawAirportCodes() {
   const occupied = [];
-  const center = projection.invert(projection.translate());
   const airports = routeAirportCodes.size
     ? [...routeAirportCodes].map((code) => ROUTE_AIRPORTS[code])
     : HUBS.map((hub) => ({ code: hub.code, coordinates: hub.coordinates }));
@@ -796,10 +839,10 @@ function drawAirportCodes() {
   context.textBaseline = "middle";
   context.fillStyle = "#929ca7";
   airports
-    .filter((airport) => isVisible(airport.coordinates, center))
+    .filter((airport) => isVisible(airport.coordinates))
     .slice(0, 90)
     .forEach((airport) => {
-      const [x, y] = projection(airport.coordinates);
+      const [x, y] = projectedPoint(airport.coordinates);
       const box = { left: x + 4, right: x + 25, top: y - 6, bottom: y + 4 };
       const overlaps = occupied.some((other) =>
         box.left < other.right && box.right > other.left &&
@@ -818,7 +861,10 @@ function ensureStateBorders() {
   if (stateBorders || stateLoadPromise) return;
   stateLoadPromise = d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
     .then((us) => {
+      nation = topojson.feature(us, us.objects.nation);
+      stateFeatures = topojson.feature(us, us.objects.states);
       stateBorders = topojson.mesh(us, us.objects.states, (a, b) => a !== b);
+      resize();
       requestRender();
     })
     .catch(() => {
@@ -826,14 +872,38 @@ function ensureStateBorders() {
     });
 }
 
+function northeastOffset(code) {
+  const offsets = {
+    BOS: [12, -18],
+    JFK: [18, 12],
+    LGA: [-18, -11],
+    EWR: [-25, 11],
+    PHL: [-6, 19],
+    DCA: [16, 18],
+    IAD: [-18, 16],
+    BWI: [10, -17]
+  };
+  const offset = offsets[code];
+  if (!offset) return [0, 0];
+  const strength = Math.max(0.55, Math.min(1.25, zoomFactor * 0.62));
+  return [offset[0] * strength, offset[1] * strength];
+}
+
+function displayPointForAirport(airport) {
+  const point = projectedPoint(airport.coordinates);
+  if (!point) return undefined;
+  const [dx, dy] = northeastOffset(airport.code);
+  return [point[0] + dx, point[1] + dy];
+}
+
 function updateHubPositions() {
   hubLayer.selectAll(".hub-marker")
     .attr("transform", (hub) => {
-      const [x, y] = projection(hub.coordinates);
+      const [x, y] = displayPointForAirport(hub) || [0, 0];
       return `translate(${x},${y})`;
     })
     .classed("off-globe", (hub) => !isVisible(hub.coordinates))
-    .classed("lod-hidden", (hub) => zoomFactor < REGIONAL_ZOOM && hub.role !== "Primary hub");
+    .classed("lod-hidden", () => false);
 
   if (hoveredHub) {
     if (isVisible(hoveredHub.coordinates)) {
@@ -845,7 +915,7 @@ function updateHubPositions() {
 }
 
 function renderGlobe() {
-  drawGlobe();
+  drawMap();
   updateRouteOverlays();
   updateHubPositions();
 }
@@ -866,7 +936,7 @@ function bindRouteHover() {
     .data(routeFeatures, (feature) => feature.properties.key)
     .join("path")
     .attr("class", "route-hit")
-    .attr("d", svgPath)
+    .attr("d", routePath)
     .on("mouseenter", (event, feature) => {
       routeState.hoveredRoute = feature;
       motion.hovering = true;
@@ -906,7 +976,7 @@ function updateRouteHighlight() {
     .join("path")
     .attr("class", "route-highlight")
     .attr("stroke", "#ffc857")
-    .attr("d", svgPath);
+    .attr("d", routePath);
   requestRender();
 }
 
@@ -1060,7 +1130,7 @@ function showHoverCard(hub, element) {
 }
 
 function positionHoverCard(hub) {
-  const [x, y] = projection(hub.coordinates);
+  const [x, y] = displayPointForAirport(hub) || projectedPoint(hub.coordinates) || [0, 0];
   const cardWidth = 248;
   const leftPanelEdge = window.innerWidth > 700 ? 344 : 10;
   let left = x + 22;
@@ -1158,18 +1228,30 @@ function resize() {
   width = mapElement.clientWidth;
   height = mapElement.clientHeight;
   globeLayout = calculateGlobeLayout();
-  baseScale = Math.min(globeLayout.availableWidth * 0.46, globeLayout.availableHeight * 0.44);
   canvas.width = width * devicePixelRatio;
   canvas.height = height * devicePixelRatio;
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   svg.attr("viewBox", `0 0 ${width} ${height}`);
+  const fitFeature = nation || usaFitFeature;
+  projection.fitExtent(
+    [
+      [globeLayout.left + 22, globeLayout.top + 78],
+      [globeLayout.right - 22, globeLayout.bottom - 26]
+    ],
+    fitFeature
+  );
+  baseScale = projection.scale();
+  baseTranslate = projection.translate();
   projection
-    .translate([globeLayout.centerX, globeLayout.centerY])
-    .scale(baseScale * zoomFactor);
+    .scale(baseScale * zoomFactor)
+    .translate([
+      baseTranslate[0] + mapOffset[0],
+      baseTranslate[1] + mapOffset[1]
+    ]);
   updateGlobeDebugOverlay();
-  if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
+  ensureStateBorders();
   requestRender();
   renderDashboard();
 }
@@ -1196,12 +1278,11 @@ svg.call(d3.drag()
     pauseRotation();
   })
   .on("drag", (event) => {
-    const sensitivity = 75 / projection.scale();
-    const rotation = projection.rotate();
-    projection.rotate([
-      rotation[0] + event.dx * sensitivity,
-      Math.max(-80, Math.min(80, rotation[1] - event.dy * sensitivity)),
-      rotation[2]
+    mapOffset[0] += event.dx;
+    mapOffset[1] += event.dy;
+    projection.translate([
+      baseTranslate[0] + mapOffset[0],
+      baseTranslate[1] + mapOffset[1]
     ]);
     requestRender();
   })
@@ -1219,54 +1300,99 @@ svg.on("wheel", (event) => {
 
 svg.on("dblclick", (event) => {
   event.preventDefault();
-  const point = d3.pointer(event, svg.node());
-  const [centerX, centerY] = projection.translate();
-  if (Math.hypot(point[0] - centerX, point[1] - centerY) > projection.scale()) return;
-  focusCoordinates(projection.invert(point), Math.max(REGIONAL_ZOOM, zoomFactor * 1.55));
+  const coordinates = projection.invert(d3.pointer(event, svg.node()));
+  if (coordinates) focusCoordinates(coordinates, Math.max(REGIONAL_ZOOM, zoomFactor * 1.55));
 });
 
 function setZoomFactor(nextZoom) {
+  const previousZoom = zoomFactor;
   zoomFactor = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
-  projection.scale(baseScale * zoomFactor);
-  if (zoomFactor >= REGIONAL_ZOOM) ensureStateBorders();
+  if (baseTranslate) {
+    const ratio = zoomFactor / previousZoom;
+    mapOffset = [mapOffset[0] * ratio, mapOffset[1] * ratio];
+    projection
+      .scale(baseScale * zoomFactor)
+      .translate([
+        baseTranslate[0] + mapOffset[0],
+        baseTranslate[1] + mapOffset[1]
+      ]);
+  }
+  ensureStateBorders();
   requestRender();
 }
 
 function focusCoordinates(coordinates, targetZoom, duration = 760) {
   pauseRotation(duration + 1400);
-  const startRotation = projection.rotate();
-  const targetRotation = [-coordinates[0], -coordinates[1], 0];
   const startZoom = zoomFactor;
   const endZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom));
+  const startOffset = [...mapOffset];
   d3.select(mapElement)
     .interrupt("globe-view")
     .transition("globe-view")
     .duration(duration)
     .ease(d3.easeCubicInOut)
     .tween("view", () => {
-      const interpolateRotation = d3.interpolate(startRotation, targetRotation);
       const interpolateZoom = d3.interpolateNumber(startZoom, endZoom);
+      const targetProjection = d3.geoAlbersUsa()
+        .fitExtent(
+          [
+            [globeLayout.left + 22, globeLayout.top + 78],
+            [globeLayout.right - 22, globeLayout.bottom - 26]
+          ],
+          nation || usaFitFeature
+        );
+      const basePoint = targetProjection.scale(targetProjection.scale() * endZoom)(coordinates);
+      const targetOffset = basePoint
+        ? [globeLayout.centerX - basePoint[0], globeLayout.centerY - basePoint[1]]
+        : [0, 0];
+      const interpolateOffset = d3.interpolateArray(startOffset, targetOffset);
       return (time) => {
-        projection.rotate(interpolateRotation(time));
-        setZoomFactor(interpolateZoom(time));
+        zoomFactor = interpolateZoom(time);
+        mapOffset = interpolateOffset(time);
+        projection
+          .scale(baseScale * zoomFactor)
+          .translate([
+            baseTranslate[0] + mapOffset[0],
+            baseTranslate[1] + mapOffset[1]
+          ]);
+        requestRender();
       };
     });
 }
 
 function resetGlobe() {
-  focusCoordinates([-98, 36], 1, 820);
+  pauseRotation(1200);
+  const startZoom = zoomFactor;
+  const startOffset = [...mapOffset];
+  d3.select(mapElement)
+    .interrupt("globe-view")
+    .transition("globe-view")
+    .duration(620)
+    .ease(d3.easeCubicInOut)
+    .tween("view", () => {
+      const interpolateZoom = d3.interpolateNumber(startZoom, 1);
+      const interpolateOffset = d3.interpolateArray(startOffset, [0, 0]);
+      return (time) => {
+        zoomFactor = interpolateZoom(time);
+        mapOffset = interpolateOffset(time);
+        projection
+          .scale(baseScale * zoomFactor)
+          .translate([
+            baseTranslate[0] + mapOffset[0],
+            baseTranslate[1] + mapOffset[1]
+          ]);
+        requestRender();
+      };
+    });
+}
+
+function viewportCenterCoordinates() {
+  return projection.invert([globeLayout.centerX, globeLayout.centerY]) || [-98, 39];
 }
 
 function animate(now) {
   const elapsed = Math.min(now - motion.lastFrame, 80);
   motion.lastFrame = now;
-  const shouldRotate = !motion.reducedMotion && !motion.dragging && !motion.hovering && !routeState.hubCode;
-  if (shouldRotate) {
-    const speed = now < motion.resumeAt ? 0.00035 : 0.001;
-    const rotation = projection.rotate();
-    projection.rotate([rotation[0] + elapsed * speed, rotation[1], rotation[2]]);
-    requestRender();
-  }
   if (motion.dirty) {
     renderGlobe();
     motion.dirty = false;
@@ -1283,15 +1409,7 @@ resize();
 refreshView();
 requestAnimationFrame(animate);
 
-d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
-  .then((world) => {
-    land = topojson.feature(world, world.objects.land);
-    countryBorders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
-    requestRender();
-  })
-  .catch(() => {
-    document.querySelector(".map-tip").textContent = "Scroll to zoom · Drag to rotate · Base layer unavailable";
-  });
+ensureStateBorders();
 
 routeToggle.addEventListener("change", (event) => {
   routeState.visible = event.target.checked;
@@ -1313,8 +1431,8 @@ document.querySelector("#reset-filters").addEventListener("click", () => {
   refreshView();
   resetGlobe();
 });
-document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor * 1.45, 420));
-document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(projection.invert(projection.translate()), zoomFactor / 1.45, 420));
+document.querySelector("#zoom-in").addEventListener("click", () => focusCoordinates(viewportCenterCoordinates(), zoomFactor * 1.45, 420));
+document.querySelector("#zoom-out").addEventListener("click", () => focusCoordinates(viewportCenterCoordinates(), zoomFactor / 1.45, 420));
 document.querySelector("#reset-globe").addEventListener("click", resetGlobe);
 
 const modalBackdrop = document.querySelector("#modal-backdrop");

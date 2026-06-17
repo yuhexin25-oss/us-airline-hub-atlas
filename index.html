@@ -18,7 +18,7 @@
   </head>
   <body>
     <main>
-      <div id="map" aria-label="Interactive globe of U.S. airline hubs"></div>
+      <div id="map" aria-label="Interactive U.S. map of airline hubs"></div>
 
       <header class="topbar">
         <div class="brand">
@@ -43,7 +43,7 @@
           <span><i class="guide-route"></i>Yellow route line = selected airline route</span>
           <span><i class="guide-focus"></i>Dashed outline = focus city</span>
           <span><i class="guide-primary"></i>Large circle = primary hub</span>
-          <span><i class="guide-action"></i>Drag to rotate · Scroll to zoom · Double-click hub to focus</span>
+          <span><i class="guide-action"></i>Drag to pan · Scroll to zoom · Double-click hub to focus</span>
         </div>
       </section>
 
@@ -188,13 +188,13 @@
       <div class="route-tooltip" id="route-tooltip" aria-live="polite"></div>
       <div class="network-tooltip" id="network-tooltip" aria-live="polite"></div>
 
-      <div class="zoom-controls" aria-label="Globe zoom controls">
+      <div class="zoom-controls" aria-label="Map zoom controls">
         <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
         <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
-        <button class="reset-globe" id="reset-globe" type="button">Reset Globe</button>
+        <button class="reset-globe" id="reset-globe" type="button">Reset Map</button>
       </div>
 
-      <div class="map-tip">Scroll to zoom · Drag to rotate · Double-click a hub to focus</div>
+      <div class="map-tip">Scroll to zoom · Drag to pan · Double-click a hub to focus</div>
 
       <div class="modal-backdrop" id="modal-backdrop" hidden>
         <section class="data-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -249,7 +249,7 @@
           <h2 id="welcome-title">U.S. Airline Hub Atlas</h2>
           <p class="welcome-copy">
             Explore the structure of the U.S. airline network through an interactive
-            D3 globe and analytical dashboard.
+            U.S. map and analytical dashboard.
           </p>
           <div class="welcome-grid">
             <section>
@@ -264,7 +264,7 @@
             <section>
               <h3>Interactions</h3>
               <ul>
-                <li>Drag to rotate the globe</li>
+                <li>Drag to pan the map</li>
                 <li>Scroll to zoom</li>
                 <li>Hover airports and routes for details</li>
                 <li>Select airlines to filter the network</li>
