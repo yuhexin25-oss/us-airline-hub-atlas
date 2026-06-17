@@ -33,33 +33,36 @@
         </button>
       </header>
 
-      <section class="kpi-strip" aria-label="Network summary">
-        <article><span>Total airports</span><strong id="kpi-airports">0</strong></article>
-        <article><span>Total routes</span><strong id="kpi-routes">0</strong></article>
-        <article><span>Total airlines</span><strong id="kpi-airlines">0</strong></article>
-        <article><span>Largest hub</span><strong id="kpi-largest-hub">—</strong></article>
-        <article><span>Selected routes</span><strong id="kpi-selected-routes">0</strong></article>
-        <article><span>Selected airports</span><strong id="kpi-selected-airports">0</strong></article>
+      <section class="map-guide" aria-label="How to read this map">
+        <div class="guide-title">
+          <p class="eyebrow">How to read this map</p>
+          <strong>Symbols encode passenger scale, airline identity, and selected network paths.</strong>
+        </div>
+        <div class="guide-items">
+          <span><i class="guide-circle-size"></i>Circle size = annual enplanements</span>
+          <span><i class="guide-circle-color"></i>Circle color = airline or hub category</span>
+          <span><i class="guide-route"></i>Solid route line = selected airline route</span>
+          <span><i class="guide-focus"></i>Dashed circle = focus city</span>
+          <span><i class="guide-highlight"></i>Yellow highlight = selected hub / route</span>
+          <span><i class="guide-action"></i>Drag rotate · Scroll zoom · Double-click hub focus</span>
+        </div>
       </section>
 
       <aside class="control-panel">
         <div class="panel-intro">
           <p class="eyebrow">Explore the network</p>
-          <h2>Where America connects.</h2>
+          <h2>Filter the atlas.</h2>
           <p>
-            The default view emphasizes major hubs. Hover to inspect an airport,
-            then select an airline or hub to explore a focused route network.
+            Search an airport, select a network role, or isolate a carrier to
+            test how the hub pattern changes.
           </p>
         </div>
 
-        <div class="stat-grid">
+        <div class="selected-summary">
+          <p class="eyebrow">Selected network</p>
           <div>
-            <strong id="airport-count">0</strong>
-            <span>Airports</span>
-          </div>
-          <div>
-            <strong id="enplanement-total">0</strong>
-            <span>Enplanements</span>
+            <span><b id="airport-count">0</b> airports</span>
+            <span><b id="enplanement-total">0</b> enplanements</span>
           </div>
         </div>
 
@@ -119,8 +122,9 @@
         <section class="analysis-card">
           <div class="analysis-heading">
             <div>
-              <p class="eyebrow">Hub hierarchy</p>
+              <p class="eyebrow">Route connectivity</p>
               <h2>Top connected hubs</h2>
+              <p class="chart-explainer">Route counts show which airports organize the selected network.</p>
             </div>
             <span id="ranking-context">All airlines</span>
           </div>
@@ -130,12 +134,24 @@
         <section class="analysis-card">
           <div class="analysis-heading">
             <div>
-              <p class="eyebrow">Carrier scale</p>
-              <h2>Airline comparison</h2>
+              <p class="eyebrow">Carrier comparison</p>
+              <h2>Airline network scale</h2>
+              <p class="chart-explainer">Tall bars indicate broader route systems; pale bars show airport reach.</p>
             </div>
             <span>Routes / airports</span>
           </div>
           <svg class="chart" id="airline-comparison-chart" role="img" aria-label="Bar chart comparing airline networks"></svg>
+        </section>
+
+        <section class="analysis-card insights-card">
+          <div class="analysis-heading">
+            <div>
+              <p class="eyebrow">Key network insights</p>
+              <h2>What the map suggests</h2>
+              <p class="chart-explainer">Short findings update as airline filters change.</p>
+            </div>
+          </div>
+          <ul class="insight-list" id="key-insights"></ul>
         </section>
 
         <section class="analysis-card hub-detail" id="hub-detail" aria-live="polite"></section>
@@ -204,6 +220,12 @@
             snapshot of non-stop U.S. segments. They include destination
             airports beyond the labeled hubs, but are not a live schedule.
           </p>
+          <div class="data-meta" aria-label="Dataset summary">
+            <span>Total airports<b id="modal-airports">0</b></span>
+            <span>Total routes<b id="modal-routes">0</b></span>
+            <span>Total airlines<b id="modal-airlines">0</b></span>
+            <span>Largest route hub<b id="modal-largest-hub">—</b></span>
+          </div>
           <div class="source-links">
             <a href="https://www.faa.gov/airports/planning_capacity/passenger_allcargo_stats/passenger" target="_blank" rel="noreferrer">
               FAA CY 2024 passenger data <span>↗</span>

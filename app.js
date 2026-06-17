@@ -300,22 +300,72 @@ function selectAirportCode(code) {
 function renderDashboard() {
   const routes = selectedAnalyticsRoutes();
   const stats = airportStats(routes);
-  renderKpis(routes, stats);
+  renderSelectedSummary();
+  renderInsights(routes, stats);
   renderHubRanking(stats);
   renderAirlineComparison();
   renderHubDetail(stats);
   renderNetworkView(routes);
 }
 
-function renderKpis(routes, stats) {
+function renderSelectedSummary() {
+  const visibleHubs = HUBS.filter(airportMatches);
+  document.querySelector("#airport-count").textContent = visibleHubs.length;
+  document.querySelector("#enplanement-total").textContent = passengerFormat(d3.sum(visibleHubs, (hub) => hub.enplanements));
+}
+
+function updateModalMetadata() {
   const globalStats = airportStats(ANALYTIC_ROUTES);
   const largestHub = [...globalStats.values()].sort((a, b) => d3.descending(a.routes, b.routes))[0];
-  document.querySelector("#kpi-airports").textContent = Object.keys(ROUTE_AIRPORTS).length;
-  document.querySelector("#kpi-routes").textContent = passengerLongFormat(ANALYTIC_ROUTES.length);
-  document.querySelector("#kpi-airlines").textContent = allAirlines.length;
-  document.querySelector("#kpi-largest-hub").textContent = largestHub?.code || "—";
-  document.querySelector("#kpi-selected-routes").textContent = filters.airlines.size ? passengerLongFormat(routes.length) : "—";
-  document.querySelector("#kpi-selected-airports").textContent = filters.airlines.size ? stats.size : "—";
+  document.querySelector("#modal-airports").textContent = Object.keys(ROUTE_AIRPORTS).length;
+  document.querySelector("#modal-routes").textContent = passengerLongFormat(ANALYTIC_ROUTES.length);
+  document.querySelector("#modal-airlines").textContent = allAirlines.length;
+  document.querySelector("#modal-largest-hub").textContent = largestHub?.code || "—";
+}
+
+function renderInsights(routes, stats) {
+  const hubStats = HUBS
+    .map((hub) => ({
+      ...hub,
+      routes: stats.get(hub.code)?.routes || 0,
+      connections: stats.get(hub.code)?.connections.size || 0
+    }))
+    .filter((hub) => hub.routes && airportMatches(hub))
+    .sort((a, b) => d3.descending(a.routes, b.routes));
+  const largestRouteHub = hubStats[0];
+  const mostConnectedHub = [...hubStats].sort((a, b) =>
+    d3.descending(a.connections, b.connections) || d3.descending(a.routes, b.routes)
+  )[0];
+  const topFiveRoutes = d3.sum(hubStats.slice(0, 5), (hub) => hub.routes);
+  const totalHubRoutes = d3.sum(hubStats, (hub) => hub.routes);
+  const topFiveShare = totalHubRoutes ? d3.format(".0%")(topFiveRoutes / totalHubRoutes) : "—";
+  const passengerLeader = [...HUBS].filter(airportMatches).sort((a, b) => d3.descending(a.enplanements, b.enplanements))[0];
+  const routeLeaderLabel = largestRouteHub
+    ? `${largestRouteHub.code} leads the visible hub set with ${largestRouteHub.routes} route incidences.`
+    : "No hub routes match the current filter.";
+  const connectedLabel = mostConnectedHub
+    ? `${mostConnectedHub.code} has the broadest direct reach, touching ${mostConnectedHub.connections} connected airports.`
+    : "Select a broader airline filter to compare hub reach.";
+  const concentrationLabel = totalHubRoutes
+    ? `The top 5 hubs account for ${topFiveShare} of visible hub route activity.`
+    : "Route concentration will appear once routes are in view.";
+  const contrastLabel = largestRouteHub && passengerLeader
+    ? largestRouteHub.code === passengerLeader.code
+      ? `${largestRouteHub.code} leads both route connectivity and passenger volume in this view.`
+      : `${largestRouteHub.code} leads connectivity, while ${passengerLeader.code} is the passenger-volume leader.`
+    : "Connectivity and passenger volume can diverge across airline networks.";
+
+  document.querySelector("#key-insights").innerHTML = [
+    ["01", "Largest hub by route count", routeLeaderLabel],
+    ["02", "Most connected hub", connectedLabel],
+    ["03", "Top 5 hub concentration", concentrationLabel],
+    ["04", "Connectivity vs. volume", contrastLabel]
+  ].map(([number, title, copy]) => `
+    <li>
+      <b>${number}</b>
+      <span><strong>${title}</strong>${copy}</span>
+    </li>
+  `).join("");
 }
 
 function renderHubRanking(stats) {
@@ -855,7 +905,7 @@ function updateRouteHighlight() {
     .data(routeState.hoveredRoute ? [routeState.hoveredRoute] : [], (feature) => feature.properties.key)
     .join("path")
     .attr("class", "route-highlight")
-    .attr("stroke", (feature) => feature.properties.color)
+    .attr("stroke", "#ffc857")
     .attr("d", svgPath);
   requestRender();
 }
@@ -1227,6 +1277,7 @@ function animate(now) {
 renderMarkers();
 document.querySelector("#airport-count").textContent = HUBS.length;
 document.querySelector("#enplanement-total").textContent = `${d3.format(".3~s")(d3.sum(HUBS, (hub) => hub.enplanements))}`;
+updateModalMetadata();
 renderFilters();
 resize();
 refreshView();
