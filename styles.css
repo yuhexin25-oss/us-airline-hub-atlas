@@ -93,12 +93,23 @@ button { cursor: pointer; }
   border-radius: 50%;
   background: linear-gradient(135deg, #df4f83 0 33%, #5c8eff 33% 66%, #70c79b 66%);
 }
-.guide-route { width: 22px; border-top: 2px solid #d6dee7; }
+.guide-route {
+  width: 22px;
+  border-top: 2px solid var(--accent);
+  filter: drop-shadow(0 0 4px rgba(255,200,87,.45));
+}
 .guide-focus {
   width: 13px;
   height: 13px;
   border: 1px dashed var(--accent);
   border-radius: 50%;
+}
+.guide-primary {
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 50%;
+  background: rgba(255,200,87,.9);
 }
 .guide-highlight {
   width: 18px;
