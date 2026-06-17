@@ -29,8 +29,8 @@ button { cursor: pointer; }
 .topbar {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 84px;
-  padding: 15px 22px 15px 28px;
+  height: 58px;
+  padding: 7px 18px 7px 22px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -42,7 +42,7 @@ button { cursor: pointer; }
 .map-guide {
   position: absolute;
   z-index: 2;
-  top: 92px;
+  top: 66px;
   left: 346px;
   right: 378px;
   display: flex;
@@ -121,13 +121,13 @@ button { cursor: pointer; }
     linear-gradient(transparent 5px, var(--accent) 5px 6px, transparent 6px);
 }
 
-.brand { display: flex; gap: 13px; align-items: center; }
+.brand { display: flex; gap: 10px; align-items: center; }
 .brand-mark {
   display: grid;
-  width: 43px;
-  height: 43px;
+  width: 34px;
+  height: 34px;
   place-items: center;
-  border-radius: 13px;
+  border-radius: 10px;
   color: var(--accent);
   background: rgba(255, 200, 87, 0.11);
   border: 1px solid rgba(255, 200, 87, 0.28);
@@ -140,23 +140,24 @@ button { cursor: pointer; }
   text-transform: uppercase;
 }
 h1, h2, h3, p { margin: 0; }
-h1 { font-size: 21px; letter-spacing: -0.04em; }
+h1 { font-size: 19px; letter-spacing: -0.04em; line-height: 1.08; }
 h2 { font-size: 26px; letter-spacing: -0.055em; line-height: 1.12; }
 h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
+.topbar .eyebrow { margin: 0 0 2px; font-size: 8px; letter-spacing: .11em; }
 
 .about-button, .close-modal {
   color: #dfe6ee;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.06);
 }
-.about-button { padding: 10px 14px; border-radius: 8px; font-size: 12px; }
+.about-button { padding: 7px 10px; border-radius: 7px; font-size: 10px; }
 .about-button:hover { background: rgba(255, 255, 255, 0.1); }
 
 .control-panel {
   position: absolute;
   z-index: 5;
   left: 18px;
-  top: 174px;
+  top: 144px;
   bottom: 18px;
   display: flex;
   flex-direction: column;
@@ -274,7 +275,7 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .empty-state { padding: 20px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 .analysis-panel {
-  position: absolute; z-index: 2; top: 174px; right: 18px; bottom: 18px; width: 342px; overflow-x: hidden; overflow-y: auto;
+  position: absolute; z-index: 2; top: 144px; right: 18px; bottom: 18px; width: 342px; overflow-x: hidden; overflow-y: auto;
   border: 1px solid var(--line); border-radius: 15px; background: rgba(9,16,28,.9);
   box-shadow: 0 18px 40px rgba(0,0,0,.3); backdrop-filter: blur(18px);
 }
@@ -413,9 +414,9 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .legend-note i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border: 1px dashed var(--accent); border-radius: 50%; }
 .legend .legend-route { margin: 8px 0 0; color: var(--muted); text-transform: none; }
 .legend-route b { display: inline-block; width: 18px; margin-right: 6px; border-top: 2px solid var(--accent); vertical-align: middle; }
-.map-tip { position: absolute; right: 378px; top: 174px; color: #a7b0bd; font: 10px "DM Mono", monospace; text-transform: uppercase; }
+.map-tip { position: absolute; right: 378px; top: 146px; color: #a7b0bd; font: 10px "DM Mono", monospace; text-transform: uppercase; }
 .zoom-controls {
-  position: absolute; right: 378px; top: 198px; display: grid; grid-template-columns: 30px 30px auto;
+  position: absolute; right: 378px; top: 170px; display: grid; grid-template-columns: 30px 30px auto;
   overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: rgba(8,13,22,.82); backdrop-filter: blur(12px);
 }
 .zoom-controls button {
@@ -489,11 +490,11 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
 @media (max-width: 700px) {
-  .topbar { height: 70px; padding: 11px 14px; }
+  .topbar { height: 56px; padding: 7px 12px; }
   .brand-mark { display: none; }
-  h1 { font-size: 17px; }
+  h1 { font-size: 16px; }
   .eyebrow { font-size: 8px; }
-  .about-button { padding: 8px; font-size: 10px; }
+  .about-button { padding: 6px 8px; font-size: 9px; }
   .control-panel { top: auto; bottom: 0; left: 0; width: 100%; height: 41vh; border-radius: 14px 14px 0 0; }
   .map-guide, .analysis-panel { display: none; }
   .panel-intro { display: none; }
