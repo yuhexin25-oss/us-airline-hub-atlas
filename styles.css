@@ -111,13 +111,6 @@ button { cursor: pointer; }
   border-radius: 50%;
   background: rgba(255,200,87,.9);
 }
-.guide-highlight {
-  width: 18px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 10px rgba(255,200,87,.55);
-}
 .guide-action {
   width: 14px;
   height: 14px;
