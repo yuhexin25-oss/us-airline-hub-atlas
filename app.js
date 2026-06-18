@@ -340,37 +340,23 @@ function renderInsights(routes, stats) {
   const totalHubRoutes = d3.sum(hubStats, (hub) => hub.routes);
   const topFiveShare = totalHubRoutes ? d3.format(".0%")(topFiveRoutes / totalHubRoutes) : "—";
   const passengerLeader = [...HUBS].filter(airportMatches).sort((a, b) => d3.descending(a.enplanements, b.enplanements))[0];
-  const routeLeaderLabel = largestRouteHub
-    ? `${largestRouteHub.code} leads the visible hub set with ${largestRouteHub.routes} route incidences.`
-    : "No hub routes match the current filter.";
-  const connectedLabel = mostConnectedHub
-    ? `${mostConnectedHub.code} has the broadest direct reach, touching ${mostConnectedHub.connections} connected airports.`
-    : "Select a broader airline filter to compare hub reach.";
-  const concentrationLabel = totalHubRoutes
-    ? `The top 5 hubs account for ${topFiveShare} of visible hub route activity.`
-    : "Route concentration will appear once routes are in view.";
-  const contrastLabel = largestRouteHub && passengerLeader
-    ? largestRouteHub.code === passengerLeader.code
-      ? `${largestRouteHub.code} leads both route connectivity and passenger volume in this view.`
-      : `${largestRouteHub.code} leads connectivity, while ${passengerLeader.code} is the passenger-volume leader.`
-    : "Connectivity and passenger volume can diverge across airline networks.";
 
   document.querySelector("#key-insights").innerHTML = [
-    ["01", "Largest hub by route count", routeLeaderLabel],
-    ["02", "Most connected hub", connectedLabel],
-    ["03", "Top 5 hub concentration", concentrationLabel],
-    ["04", "Connectivity vs. volume", contrastLabel]
-  ].map(([number, title, copy]) => `
+    ["Largest Hub", largestRouteHub?.code || "—"],
+    ["Most Connected", mostConnectedHub?.code || "—"],
+    ["Passenger Peak", passengerLeader?.code || "—"],
+    ["Top 5 Share", topFiveShare]
+  ].map(([label, value, copy]) => `
     <li>
-      <b>${number}</b>
-      <span><strong>${title}</strong>${copy}</span>
+      <span class="insight-label">${label}</span>
+      <b>${value}</b>
     </li>
   `).join("");
 }
 
 function renderHubRanking(stats) {
   const width = hubRankingChart.node()?.clientWidth || 314;
-  const height = 184;
+  const height = 148;
   const margin = { top: 4, right: 30, bottom: 20, left: 40 };
   const ranked = HUBS
     .map((hub) => ({ ...hub, degree: stats.get(hub.code)?.routes || 0 }))
@@ -400,7 +386,7 @@ function renderHubRanking(stats) {
 
 function renderAirlineComparison() {
   const width = airlineComparisonChart.node()?.clientWidth || 314;
-  const height = 184;
+  const height = 148;
   const margin = { top: 4, right: 8, bottom: 35, left: 28 };
   const data = airlineStats().sort((a, b) => d3.descending(a.routes, b.routes));
   const x = d3.scaleBand().domain(data.map((item) => item.airline)).range([margin.left, width - margin.right]).padding(0.22);
@@ -1200,7 +1186,7 @@ function renderFilters() {
   document.querySelector("#airline-filters").innerHTML = airlines
     .map((airline) => {
       const isActive = airline === "All" ? filters.airlines.size === 0 && !routeState.hubCode : filters.airlines.has(airline);
-      return `<button class="filter-chip airline-chip ${isActive ? "active" : ""}" style="--chip:${AIRLINE_COLORS[airline] || "#ffc857"}" type="button" data-airline="${airline}">${airline}</button>`;
+      return `<button class="filter-chip airline-chip ${isActive ? "active" : ""}" style="--chip:${AIRLINE_COLORS[airline] || "#ffc857"}" type="button" data-airline="${airline}"><i></i>${airline}</button>`;
     })
     .join("");
   document.querySelectorAll("[data-airline]").forEach((button) => {
