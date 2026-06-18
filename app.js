@@ -1186,7 +1186,8 @@ function renderFilters() {
   document.querySelector("#airline-filters").innerHTML = airlines
     .map((airline) => {
       const isActive = airline === "All" ? filters.airlines.size === 0 && !routeState.hubCode : filters.airlines.has(airline);
-      return `<button class="filter-chip airline-chip ${isActive ? "active" : ""}" style="--chip:${AIRLINE_COLORS[airline] || "#ffc857"}" type="button" data-airline="${airline}"><i></i>${airline}</button>`;
+      const swatch = airline === "All" ? "" : `<i aria-hidden="true"></i>`;
+      return `<button class="filter-chip airline-chip ${isActive ? "active" : ""}" style="--chip:${AIRLINE_COLORS[airline] || "#ffc857"}" type="button" data-airline="${airline}">${swatch}<span>${airline}</span></button>`;
     })
     .join("");
   document.querySelectorAll("[data-airline]").forEach((button) => {
