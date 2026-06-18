@@ -116,7 +116,6 @@ const hubDetail = document.querySelector("#hub-detail");
 const mapElement = document.querySelector("#map");
 const controlPanel = document.querySelector(".control-panel");
 const analysisPanel = document.querySelector(".analysis-panel");
-const topbar = document.querySelector(".topbar");
 const canvas = d3.select(mapElement).append("canvas").attr("class", "globe-canvas").node();
 const context = canvas.getContext("2d");
 const svg = d3.select(mapElement).append("svg")
@@ -172,12 +171,11 @@ function calculateGlobeLayout() {
   const mapRect = mapElement.getBoundingClientRect();
   const leftPanelRect = visibleRect(controlPanel);
   const rightPanelRect = visibleRect(analysisPanel);
-  const topbarRect = visibleRect(topbar);
   const gutter = 18;
   const mobileSheet = window.innerWidth <= 700 && leftPanelRect;
   const left = leftPanelRect && !mobileSheet ? leftPanelRect.right - mapRect.left + gutter : 0;
   const right = rightPanelRect ? rightPanelRect.left - mapRect.left - gutter : width;
-  const top = topbarRect ? topbarRect.bottom - mapRect.top : 0;
+  const top = 0;
   const bottom = mobileSheet ? leftPanelRect.top - mapRect.top : height;
   const availableWidth = Math.max(1, right - left);
   const availableHeight = Math.max(1, bottom - top);
