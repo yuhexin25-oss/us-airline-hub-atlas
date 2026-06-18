@@ -316,6 +316,8 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
 .detail-grid span { padding: 7px; color: var(--dim); border: 1px solid var(--line); border-radius: 5px; font: 8px "DM Mono", monospace; text-transform: uppercase; }
 .detail-grid b { display: block; margin-top: 2px; color: var(--accent); font: 500 14px "Manrope", sans-serif; text-transform: none; }
+.intelligence-grid span { min-width: 0; }
+.intelligence-grid b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-copy { margin-top: 9px; color: var(--muted); font-size: 10px; line-height: 1.55; }
 .detail-copy b { color: var(--ink); }
 .network-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
@@ -338,24 +340,25 @@ h3 { font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
 .legend-link-weight { width: 14px; border-top: 2px solid #82909d; }
 .legend-node-role { width: 8px; height: 8px; border-radius: 50%; background: #70c79b; }
 .insights-card { background: rgba(255,255,255,.018); }
-.insight-list { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
+.insight-list { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
 .insight-list li {
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 5px;
-  background: rgba(255,255,255,.025);
-  color: var(--muted);
+  position: relative;
+  padding-left: 13px;
+  color: #b9c2cc;
   font-size: 10px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
-.insight-list b {
-  display: block;
-  margin-top: 2px;
-  color: var(--accent);
-  font: 700 16px "DM Mono", monospace;
+.insight-list li::before {
+  position: absolute;
+  top: .56em;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 7px rgba(255,200,87,.42);
+  content: "";
 }
-.insight-label { color: var(--dim); font: 8px "DM Mono", monospace; text-transform: uppercase; }
 
 .hub-marker {
   cursor: pointer; outline: none; transition: opacity .18s;

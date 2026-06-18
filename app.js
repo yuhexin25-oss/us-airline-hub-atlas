@@ -304,7 +304,7 @@ function renderDashboard() {
   renderInsights(routes, stats);
   renderHubRanking(stats);
   renderAirlineComparison();
-  renderHubDetail(stats);
+  renderHubDetail(routes, stats);
   renderNetworkView(routes);
 }
 
@@ -340,17 +340,40 @@ function renderInsights(routes, stats) {
   const totalHubRoutes = d3.sum(hubStats, (hub) => hub.routes);
   const topFiveShare = totalHubRoutes ? d3.format(".0%")(topFiveRoutes / totalHubRoutes) : "—";
   const passengerLeader = [...HUBS].filter(airportMatches).sort((a, b) => d3.descending(a.enplanements, b.enplanements))[0];
+  const selectedAirlines = [...filters.airlines];
+  const topCodes = hubStats.slice(0, 5).map((hub) => hub.code);
+  const leadAirline = selectedAirlines.length === 1 ? selectedAirlines[0] : undefined;
+  const concentration = totalHubRoutes && topFiveRoutes ? topFiveRoutes / totalHubRoutes : 0;
+  const leadSummary = leadAirline && topCodes.length
+    ? concentration >= 0.48
+      ? `${leadAirline}'s visible network is concentrated around ${topCodes.slice(0, 3).join(", ")}.`
+      : `${leadAirline}'s visible network is distributed across ${topCodes.join(", ")}.`
+    : largestRouteHub
+      ? `Largest hub: ${largestRouteHub.code} leads the visible network with ${largestRouteHub.routes} route incidences.`
+      : "No route activity matches the current filters.";
+  const connectedSummary = mostConnectedHub
+    ? `Most connected hub: ${mostConnectedHub.code} reaches ${mostConnectedHub.connections} distinct airports.`
+    : "Most connected hub: not available for this filter.";
+  const volumeSummary = passengerLeader
+    ? `Highest passenger volume: ${passengerLeader.code} with ${passengerFormat(passengerLeader.enplanements)} annual enplanements.`
+    : "Highest passenger volume: no visible airport volume available.";
+  const shareSummary = totalHubRoutes
+    ? `Top 5 hubs account for ${topFiveShare} of visible route activity.`
+    : "Top 5 hub share: not available until routes are visible.";
+  const roleSummary = filters.role !== "All"
+    ? `Role filter active: analysis is limited to ${filters.role.toLowerCase()} airports.`
+    : selectedAirlines.length > 1
+      ? `Carrier comparison: ${selectedAirlines.join(", ")} share strongest activity at ${topCodes.slice(0, 3).join(", ") || "visible hubs"}.`
+      : undefined;
 
   document.querySelector("#key-insights").innerHTML = [
-    ["Largest Hub", largestRouteHub?.code || "—"],
-    ["Most Connected", mostConnectedHub?.code || "—"],
-    ["Passenger Peak", passengerLeader?.code || "—"],
-    ["Top 5 Share", topFiveShare]
-  ].map(([label, value, copy]) => `
-    <li>
-      <span class="insight-label">${label}</span>
-      <b>${value}</b>
-    </li>
+    leadSummary,
+    connectedSummary,
+    volumeSummary,
+    shareSummary,
+    roleSummary
+  ].filter(Boolean).slice(0, 5).map((copy) => `
+    <li>${copy}</li>
   `).join("");
 }
 
@@ -411,33 +434,72 @@ function renderAirlineComparison() {
     .attr("x", x.bandwidth() / 2).attr("y", height - 9).text((item) => item.primaryHub);
 }
 
-function renderHubDetail(stats) {
-  const detailStats = routeState.hubCode && !stats.has(routeState.hubCode) ? airportStats(ANALYTIC_ROUTES) : stats;
-  const selected = routeState.hubCode && detailStats.get(routeState.hubCode);
-  if (!selected) {
+function renderHubDetail(routes, stats) {
+  if (!routeState.hubCode) {
     hubDetail.innerHTML = `
-      <p class="eyebrow">Airport detail</p>
-      <h2>Select a hub</h2>
-      <p class="detail-copy">Choose a map marker, ranking bar, or network node to inspect its role in the filtered network.</p>
+      <p class="eyebrow">Airport intelligence</p>
+      <h2>Click an airport</h2>
+      <p class="detail-copy">Click an airport to inspect its network role.</p>
     `;
     return;
   }
-  const ranked = [...detailStats.values()].sort((a, b) => d3.descending(a.routes, b.routes));
-  const majorConnections = [...selected.connections]
-    .sort((a, b) => d3.descending(hubsByCode.get(a)?.enplanements || 0, hubsByCode.get(b)?.enplanements || 0))
-    .slice(0, 7);
+
+  const code = routeState.hubCode;
+  const airport = hubsByCode.get(code) || ROUTE_AIRPORTS[code];
+  const detailRoutes = routes.some((route) => route.origin === code || route.destination === code)
+    ? routes
+    : ANALYTIC_ROUTES;
+  const detailStats = airportStats(detailRoutes);
+  const selected = detailStats.get(code) || {
+    code,
+    city: airport?.city || code,
+    routes: 0,
+    airlines: new Set(),
+    connections: new Set()
+  };
+  const visibleCodes = new Set(HUBS.filter(airportMatches).map((hub) => hub.code));
+  if (!visibleCodes.has(code)) visibleCodes.add(code);
+  const ranked = [...detailStats.values()]
+    .filter((item) => visibleCodes.has(item.code))
+    .sort((a, b) => d3.descending(a.routes, b.routes) || d3.ascending(a.code, b.code));
+  const rankIndex = ranked.findIndex((item) => item.code === code);
+  const connectedRoutes = detailRoutes.filter((route) => route.origin === code || route.destination === code);
+  const destinationCounts = d3.rollups(
+    connectedRoutes,
+    (items) => items.length,
+    (route) => route.origin === code ? route.destination : route.origin
+  ).sort((a, b) => d3.descending(a[1], b[1]) || d3.ascending(a[0], b[0]));
+  const airlineCounts = d3.rollups(
+    connectedRoutes,
+    (items) => items.length,
+    (route) => route.airline
+  ).sort((a, b) => d3.descending(a[1], b[1]) || d3.ascending(a[0], b[0]));
+  const dominantAirline = airlineCounts[0]?.[0] || hubsByCode.get(code)?.anchor || "—";
+  const selectedAirlines = [...filters.airlines];
+  const selectedAirlineRoutes = selectedAirlines.length
+    ? connectedRoutes.filter((route) => selectedAirlines.includes(route.airline)).length
+    : undefined;
+  const selectedRelevance = selectedAirlines.length
+    ? `${selectedAirlineRoutes} routes in ${selectedAirlines.join(", ")} view`
+    : "All-airline context";
+  const role = hubsByCode.get(code)?.role || "Other airport";
+  const enplanements = hubsByCode.get(code)?.enplanements;
+  const topDestinations = destinationCounts.slice(0, 5).map(([destination]) => destination);
+
   hubDetail.innerHTML = `
-    <p class="eyebrow">Airport detail</p>
-    <h2>${selected.code}</h2>
-    <p class="detail-city">${selected.city}</p>
-    <div class="detail-grid">
+    <p class="eyebrow">Airport intelligence</p>
+    <h2>${code}</h2>
+    <p class="detail-city">${airport?.name || `${selected.city} airport`}</p>
+    <p class="detail-copy">${selected.city || airport?.city || "Unknown city"}</p>
+    <div class="detail-grid intelligence-grid">
+      <span>Role<b>${role}</b></span>
       <span>Routes<b>${selected.routes}</b></span>
-      <span>Hub rank<b>#${ranked.findIndex((airport) => airport.code === selected.code) + 1}</b></span>
-      <span>Airlines<b>${selected.airlines.size}</b></span>
-      <span>Connections<b>${selected.connections.size}</b></span>
+      <span>Connectivity rank<b>${rankIndex >= 0 ? `#${rankIndex + 1}` : "—"}</b></span>
+      <span>Enplanements<b>${enplanements ? passengerFormat(enplanements) : "—"}</b></span>
+      <span>Dominant airline<b>${dominantAirline}</b></span>
+      <span>Airline relevance<b>${selectedRelevance}</b></span>
     </div>
-    <p class="detail-copy"><b>Airlines served:</b> ${[...selected.airlines].join(", ")}</p>
-    <p class="detail-copy"><b>Connected major airports:</b> ${majorConnections.join(", ") || "No major hub connections in this view"}</p>
+    <p class="detail-copy"><b>Top connected destinations:</b> ${topDestinations.join(" · ") || "No connected destinations in this view"}</p>
   `;
 }
 
@@ -1193,13 +1255,13 @@ function renderFilters() {
   document.querySelectorAll("[data-airline]").forEach((button) => {
     button.addEventListener("click", () => {
       const airline = button.dataset.airline;
-      routeState.hubCode = undefined;
       if (airline === "All") {
         filters.airlines.clear();
         routeState.visible = false;
+        routeState.hubCode = undefined;
       } else if (filters.airlines.has(airline)) {
         filters.airlines.delete(airline);
-        if (!filters.airlines.size) routeState.visible = false;
+        routeState.visible = Boolean(filters.airlines.size || routeState.hubCode);
       } else {
         filters.airlines.add(airline);
         routeState.visible = true;
